@@ -22,9 +22,6 @@ class UtilTest extends FlatSpec with Matchers {
     val s = foo.toString
 
     val result: TestRecord = deserializer(foo)
-    val result2: TestRecord = mkAvroDeserializer(TestRecord.getClassSchema)(foo)
-    val result3: TestRecord = mkAvroDeserializer(TestRecord.getClassSchema)(foo)
-    val result4: TestRecord = mkAvroDeserializer(TestRecord.getClassSchema)(foo)
 
     // then: the result should be the same as the starting record
     result should be(record)
