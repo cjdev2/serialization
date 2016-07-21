@@ -1,5 +1,5 @@
 @namespace("com.cj.serialization.avro.autogen")
-protocol Foo {
+protocol TestProtocol {
   record TestRecord {
     string foo;
   }
