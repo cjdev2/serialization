@@ -10,21 +10,24 @@ object Util {
   type RecordSerializer[T] = T => Array[Byte]
   type RecordDeserializer[T] = Array[Byte] => T
 
+  // make a RecordSerializer for class T, passing through intermediate avro-generated class U
   def mkSerializer[T, U <: SpecificRecord](f: (T => U)): RecordSerializer[T] = {
-    val serializer = mkAvroSerializer[U]()
-    record => serializer(f(record))
+    val avroSerializer = mkAvroSerializer[U]()
+    record => avroSerializer(f(record))
   }
 
+  // make a RecordDeserializer for class T, passing through intermediate avro-generated class U
   def mkDeserializer[T, U >: Null <: SpecificRecord](f: U => T, schema: Schema): RecordDeserializer[Option[T]] = {
-    val deserializer: Array[Byte] => U = mkAvroDeserializer(schema)
+    val avroDeserializer = mkAvroDeserializer(schema)
     bytes => {
-      val avro: U = deserializer(bytes)
-      if (avro == null) None
-      else Some(f(avro))
+      val avroRec: U = avroDeserializer(bytes)
+      if (avroRec == null) None
+      else Some(f(avroRec))
     }
   }
 
-  def mkAvroSerializer[T <: SpecificRecord]: Unit => RecordSerializer[T] = _ => {
+  // make a RecordSerializer for avro-generated class T
+  def mkAvroSerializer[T <: SpecificRecord](): RecordSerializer[T] = {
     val output = new ByteArrayOutputStream()
     val writer: DatumWriter[T] = new SpecificDatumWriter[T]()
     var encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(output, null)
@@ -39,7 +42,8 @@ object Util {
     }
   }
 
-  def mkAvroDeserializer[T >: Null <: SpecificRecord]: Schema => RecordDeserializer[T] = schema => {
+  // make a RecordDeserializer for avro-generated class T
+  def mkAvroDeserializer[T >: Null <: SpecificRecord](schema: Schema): RecordDeserializer[T] = {
     val reader: SpecificDatumReader[T] = new SpecificDatumReader[T](schema)
     var decoder: BinaryDecoder = DecoderFactory.get().binaryDecoder(Array[Byte](), null)
     bytes => {
