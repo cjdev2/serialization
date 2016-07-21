@@ -1,0 +1,6 @@
+@namespace("com.cj.serialization.avro.autogen")
+protocol Foo {
+  record TestRecord {
+    string foo;
+  }
+}
