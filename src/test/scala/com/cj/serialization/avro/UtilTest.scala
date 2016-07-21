@@ -1,4 +1,4 @@
-package com.cj.serialization.avro // why are we making the test accessible to the world?
+package com.cj.serialization.avro
 
 import org.scalatest.{FlatSpec, Matchers}
 
