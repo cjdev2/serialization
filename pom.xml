@@ -37,10 +37,10 @@
                         <configuration>
                             <sources>
                                 <source>
-                                    target/generated-sources/com/cj/serialization/avro
+                                    target/generated-sources/avro/
                                 </source>
                                 <source>
-                                    target/generated-test-sources/com/cj/serialization/avro
+                                    target/generated-test-sources/avro/
                                 </source>
                             </sources>
                         </configuration>
@@ -63,10 +63,10 @@
                             <stringType>String</stringType>
                             <fieldVisibility>PRIVATE</fieldVisibility>
                             <sourceDirectory>
-                                ${project.basedir}/src/main/resources/com/cj/serialization/avro/
+                                ${project.basedir}/src/main/resources/avro/
                             </sourceDirectory>
                             <testSourceDirectory>
-                                ${project.basedir}/src/test/resources/com/cj/serialization/avro/
+                                ${project.basedir}/src/test/resources/avro/
                             </testSourceDirectory>
                         </configuration>
                     </execution>

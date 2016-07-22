@@ -3,7 +3,7 @@ package com.cj.serialization.avro
 import org.scalatest.{FlatSpec, Matchers}
 
 import com.cj.serialization.avro.Util.{mkAvroDeserializer, mkAvroSerializer, mkDeserializer, mkSerializer, RecordDeserializer, RecordSerializer}
-import com.cj.serialization.avro.autogen.TestRecord
+import testavroautogen.TestRecord
 
 class UtilTest extends FlatSpec with Matchers {
 
