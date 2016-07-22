@@ -1,4 +1,4 @@
-package com.cj.serialization.avro
+package com.cj.serialization
 
 import java.io.ByteArrayOutputStream
 
@@ -6,7 +6,7 @@ import org.apache.avro.Schema
 import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DatumWriter, DecoderFactory, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
 
-object Util {
+package object avro {
   type RecordSerializer[T] = T => Array[Byte]
   type RecordDeserializer[T] = Array[Byte] => T
 

@@ -1,11 +1,9 @@
 package com.cj.serialization.avro
 
 import org.scalatest.{FlatSpec, Matchers}
-
-import com.cj.serialization.avro.Util.{mkAvroDeserializer, mkAvroSerializer, mkDeserializer, mkSerializer, RecordDeserializer, RecordSerializer}
 import testavroautogen.TestRecord
 
-class UtilTest extends FlatSpec with Matchers {
+class PackageTest extends FlatSpec with Matchers {
 
   // TestRecord is Avro-generated java class
   // SomeRecord is native Scala class
