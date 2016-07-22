@@ -85,24 +85,24 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.dstovall</groupId>
-                <artifactId>onejar-maven-plugin</artifactId>
-                <version>1.4.4</version>
-                <executions>
-                    <execution>
-                        <configuration>
-                            <onejarVersion>0.97</onejarVersion>
-                            <attachToBuild>true</attachToBuild>
-                            <classifier>onejar</classifier>
-                            <mainClass>ddd.DddServer</mainClass>
-                        </configuration>
-                        <goals>
-                            <goal>one-jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+            <!--<plugin>-->
+                <!--<groupId>org.dstovall</groupId>-->
+                <!--<artifactId>onejar-maven-plugin</artifactId>-->
+                <!--<version>1.4.4</version>-->
+                <!--<executions>-->
+                    <!--<execution>-->
+                        <!--<configuration>-->
+                            <!--<onejarVersion>0.97</onejarVersion>-->
+                            <!--<attachToBuild>true</attachToBuild>-->
+                            <!--<classifier>onejar</classifier>-->
+                            <!--<mainClass>ddd.DddServer</mainClass>-->
+                        <!--</configuration>-->
+                        <!--<goals>-->
+                            <!--<goal>one-jar</goal>-->
+                        <!--</goals>-->
+                    <!--</execution>-->
+                <!--</executions>-->
+            <!--</plugin>-->
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
