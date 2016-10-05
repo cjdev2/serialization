@@ -7,8 +7,8 @@ import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DatumWriter, DecoderFac
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
 
 package object avro {
-  type RecordSerializer[T] = T => Array[Byte]
-  type RecordDeserializer[T] = Array[Byte] => T
+  type RecordSerializer[-T] = T => Array[Byte]
+  type RecordDeserializer[+T] = Array[Byte] => T
 
   // make a RecordSerializer for class T, passing through intermediate avro-generated class U
   def mkSerializer[T, U <: SpecificRecord](f: (T => U)): RecordSerializer[T] = {
