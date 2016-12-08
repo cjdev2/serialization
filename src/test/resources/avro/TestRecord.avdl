@@ -1,6 +1,0 @@
-@namespace("testavroautogen")
-protocol TestProtocol {
-  record TestRecord {
-    string foo;
-  }
-}

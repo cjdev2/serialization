@@ -1,0 +1,8 @@
+@namespace("local.protocol.serialization.avro")
+protocol TestProtocol {
+
+    record TestRecord {
+        string foo;
+        long bar;
+    }
+}
