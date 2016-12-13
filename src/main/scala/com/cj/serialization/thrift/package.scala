@@ -1,17 +1,22 @@
 package com.cj.serialization
 
 import com.twitter.scrooge.ThriftStruct
+import local.protocol.serialization.thrift.scala.TestRecord
 
 package object thrift {
 
   implicit object SerializableThriftStruct extends Serializable[ThriftStruct] {
     def serialize(t: ThriftStruct): Array[Byte] = {
-      implicitly[Serializable[String]].serialize(t.toString)
+      ???
+      Array()
     }
   }
 
   class ThriftDeserializable[T <: ThriftStruct] extends Deserializable[T] {
-    def deserialize(bytes: Array[Byte]): Option[T] = None
+    def deserialize(bytes: Array[Byte]): Option[T] = {
+      ???
+      None
+    }
   }
 
   def makeThriftDeserializer[T <: ThriftStruct]: Array[Byte] => Option[T] = {
