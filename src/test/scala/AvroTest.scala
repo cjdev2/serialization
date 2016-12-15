@@ -33,6 +33,24 @@ class AvroTest extends FlatSpec with Matchers {
     true
   }
 
+  it should "be usable concurrently" in {
+    // given: a bunch of `TestRecord`s
+    val records = for {
+      s <- 'a'.to('z').map(_.toString)
+      n <- 0l.to(9l)
+    } yield new TestRecord(s, n)
+
+    // when: we serialize them concurrently
+    val strictResult = records.map(serialize[TestRecord])
+    val concurrentResult = records.par.map(serialize[TestRecord])
+
+    // then: the results should be the same
+    val z =
+      strictResult.zip(concurrentResult)
+        .map({ case (z1, z2) => z1 sameElements z2 }).reduce(_ && _)
+    z should be (true)
+  }
+
   behavior of "AvroDeserializable[T]"
 
   it should "be able to create a `Deserializable[TestRecord]`" in {
