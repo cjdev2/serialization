@@ -20,18 +20,11 @@ package object avro {
   implicit object SerializableSpecificRecord
     extends Serializable[SpecificRecord] {
 
-    private lazy val output =
-      new java.io.ByteArrayOutputStream
-
-    private lazy val writer =
-      new SpecificDatumWriter[SpecificRecord]
-
-    private var encoder =
-      EncoderFactory.get.binaryEncoder(output, null)
-
     def serialize(t: SpecificRecord): Array[Byte] = {
-      output.reset()
-      encoder = EncoderFactory.get.binaryEncoder(output, encoder)
+      val output = new java.io.ByteArrayOutputStream
+      val writer = new SpecificDatumWriter[SpecificRecord]
+      val encoder = EncoderFactory.get.binaryEncoder(output, null)
+
       writer.setSchema(t.getSchema)
       writer.write(t, encoder)
       encoder.flush()
