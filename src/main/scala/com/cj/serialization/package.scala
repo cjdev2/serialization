@@ -6,13 +6,10 @@ package object serialization {
     * Provides a [[serialize]] (prefix) method to class `T` post-hoc, which
     * allow values of `T` to be serialized into byte arrays.
     *
-    * [[Serializable]]`[_]` is contravariant, in the sense that if `T` is a
-    * subclass of `S`, then `Serializable[S]` is a subclass of
-    * `Serializable[T]`. A result is that any value of type `Serializable[S]` is
-    * implicitly a value of `Serializable[T]`, thus it is unnecessary (in-fact,
-    * a compile-time error) to create an implicit value of type
-    * `Serializable[T]` when an implicit value of type `Serializable[S]` exists
-    * in scope.
+    * [[Serializable]]`[_]` is contravariant, in the sense that if `S` is a
+    * subtype of `T`, then `Serializable[T]` is a subtype of `Serializable[S]`.
+    * As a result, any implementation of `Serializable[T]` is automatically an
+    * implementation of `Serializable[S]`.
     *
     * @tparam T The class for which you are implementing the [[serialize]]
     *           prefix method
@@ -25,8 +22,8 @@ package object serialization {
     * Call [[serialize]] on any value `t: T` for which an implicit instance of
     * [[Serializable]]`[T]` exists in scope. If there is no implicit instance of
     * `Serializable[T]`---or if there is more than one implicit instance--- in
-    * scope, your code will fail to compile (i.e. there is no risk of ambiguity
-    * leading to a runtime error).
+    * scope, your code will fail to compile (i.e. there is no risk that
+    * ambiguity will lead to a runtime error).
     *
     * @param t The value you are serializing
     * @tparam T The type you are serializing
@@ -36,8 +33,9 @@ package object serialization {
     implicitly[Serializable[T]].serialize(t)
 
   /**
-    * Some default instances of [[Serializable]]`[T]` for various `T`s. These
-    * instances will only be used if the user does not provide their own
+    * Some default instances of [[Serializable]]`[T]` for various `T`s.
+    *
+    * These instances are only accessible if the user does not provide their own
     * instances. E.g., the user may override the library implementation of
     * `Serializable[String]` simply by creating their own implementation:
     * {{{
@@ -55,10 +53,7 @@ package object serialization {
     implicit object SerializableAnyVal extends Serializable[AnyVal] {
       def serialize(t: AnyVal): Array[Byte] = t match {
         case t: Byte => Array(t)
-        case _ =>
-          com.cj.serialization.Serializable
-            .SerializableString
-            .serialize(t.toString)
+        case _ => implicitly[Serializable[String]].serialize(t.toString)
       }
     }
   }
@@ -67,13 +62,11 @@ package object serialization {
     * Provides a [[deserialize]] (prefix) method to `Array[Byte]` post-hoc,
     * which allows byte arrays to be parsed into values of `Option[T]`.
     *
-    * [[Deserializable]]`[_]` is covariant, in the sense that if `T` is a
-    * subclass of `S`, then `Deserializable[T]` is a subclass of
-    * `Deserializable[S]`. A result is that any value of type
-    * `Deserializable[T]` is implicitly a value of `Deserializable[S]`, thus it
-    * is unnecessary (in-fact, a compile-time error) to implement an implicit
-    * value of type `Deserializable[S]` if an implicit value of type
-    * `Deserializable[T]` exists in scope.
+    * [[Deserializable]]`[_]` is covariant, in the sense that if `S` is a
+    * subtype of `T`, then `Deserializable[S]` is a subtype of
+    * `Deserializable[T]`. As a result, any implementation of
+    * `Deserializable[S]` is automatically an implementation of
+    * `Deserializable[T]`.
     *
     * @tparam T The return type of the [[deserialize]] prefix method that you
     *           are implementing
@@ -83,12 +76,10 @@ package object serialization {
   }
 
   /**
-    * Call [[deserialize]] on any byte array. The consumer of the returned
-    * value will determine the value of the type parameter `T`, or the user can
-    * supply the `T` at the time of the call vis-a-vis `deserialize[Foo](bar)`.
-    * If there is no implicit instance of [[Deserializable]]`[T]`---or if there
-    * is more than one implicit instance---in scope, then your code will fail to
-    * compile (i.e. there is no risk of ambiguity leading to a runtime error).
+    * Call [[deserialize]] on any byte array. If there is no implicit instance
+    * of [[Deserializable]]`[T]` or if there is more than one implicit instance,
+    * then your code will fail to compile (i.e. there is no risk that ambiguity
+    * will lead to a runtime error).
     *
     * @param bytes the bytes you hope to deserialize
     * @tparam T the type you hope to retrieve from `bytes`
@@ -98,8 +89,9 @@ package object serialization {
     implicitly[Deserializable[T]].deserialize(bytes)
 
   /**
-    * Some default instances of [[Deserializable]]`[T]` for various `T`s. These
-    * instances will only be used if the user does not provide their own
+    * Some default instances of [[Deserializable]]`[T]` for various `T`s.
+    *
+    * These instances are only accessible if the user does not provide their own
     * instances. E.g., the user may override the library implementation of
     * `Deserializable[String]` simply by creating their own implementation:
     * {{{
@@ -118,14 +110,6 @@ package object serialization {
 
     private def asString(bytes: Array[Byte]): Option[String] =
       deserialize[String](bytes)
-
-    implicit object DeserializableUnit extends Deserializable[Unit] {
-      def deserialize(bytes: Array[Byte]): Option[Unit] =
-        asString(bytes) match {
-          case Some("()") => Some(Unit)
-          case _ => None
-        }
-    }
 
     implicit object DeserializableBoolean extends Deserializable[Boolean] {
       def deserialize(bytes: Array[Byte]): Option[Boolean] =
@@ -154,6 +138,14 @@ package object serialization {
       }
     }
 
+    implicit object DeserializableUnit extends Deserializable[Unit] {
+      def deserialize(bytes: Array[Byte]): Option[Unit] =
+        asString(bytes) match {
+          case Some("()") => Some(Unit)
+          case _ => None
+        }
+    }
+
     class DeserializableAnyVal[T <: AnyVal](f: String => T)
       extends Deserializable[T] {
       def deserialize(bytes: Array[Byte]): Option[T] = {
@@ -167,11 +159,11 @@ package object serialization {
     implicit object DeserializableFloat
       extends DeserializableAnyVal[Float](_.toFloat)
 
-    implicit object DeserializableLong
-      extends DeserializableAnyVal[Long](_.toLong)
-
     implicit object  DeserializableInt
       extends DeserializableAnyVal[Int](_.toInt)
+
+    implicit object DeserializableLong
+      extends DeserializableAnyVal[Long](_.toLong)
 
     implicit object DeserializableShort
       extends DeserializableAnyVal[Short](_.toShort)

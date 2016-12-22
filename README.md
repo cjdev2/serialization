@@ -25,8 +25,13 @@ import com.cj.serialization._
 Import Avro features as:
 
 ```scala
-import com.cj.serialization._
 import com.cj.serialization.avro._
+```
+
+Import Thrift features as:
+
+```scala
+import com.cj.serialization.thrift._
 ```
 
 Full documentation available upon build at "./target/site/scaladocs/index.html"
