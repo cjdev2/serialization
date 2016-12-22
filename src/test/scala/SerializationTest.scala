@@ -4,6 +4,48 @@ class SerializationTest extends FlatSpec with Matchers {
 
   import com.cj.serialization._
 
+  behavior of "Serializable"
+
+  it should "be open to post-hoc implementations" in {
+    // given: a class
+    case class Foo(bar: Int, baz: Char)
+
+    // when: we implement `Serializable[Foo]`
+    implicit object SerializableFoo extends Serializable[Foo] {
+      def serialize(t: Foo): Array[Byte] =
+        s"""Foo ${t.bar} ${t.baz}""".toCharArray.map(_.toByte)
+    }
+
+    // then: `serialize` should be available for arguments of type `Foo`
+    serialize(Foo(0,'c')) should be("Foo 0 c".toCharArray.map(_.toByte))
+  }
+
+  behavior of "Deserializable"
+
+  it should "be open to post-hoc implementations" in {
+    // given: a class
+    case class Foo(bar: Int, baz: Char)
+
+    // when: we implement `Deserialize[Foo]`
+    implicit object DeserializableFoo extends Deserializable[Foo] {
+      def deserialize(bytes: Array[Byte]): Option[Foo] = {
+
+        val tokens = bytes.map(_.toChar).mkString.split(" ")
+
+        if (tokens.length == 3 && tokens(0) == "Foo") {
+          val num = tokens(1)
+          val char = tokens(2)
+          Foo(num, char)
+        } else None
+      }
+    }
+
+    // then: `deserialize` should be able to return values of type `Foo`
+    deserialize[Foo](
+      "Foo 123 a".toCharArray.map(_.toByte)
+    ) should be(Some(Foo(123, 'a')))
+  }
+
   behavior of "String"
 
   it should "be deserializable" in {
