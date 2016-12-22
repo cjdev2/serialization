@@ -33,14 +33,20 @@ class SerializationTest extends FlatSpec with Matchers {
         val tokens = bytes.map(_.toChar).mkString.split(" ")
 
         if (tokens.length == 3 && tokens(0) == "Foo") {
-          val num = tokens(1)
-          val char = tokens(2)
-          Foo(num, char)
+          val num = scala.util.Try(tokens(1).toInt).toOption
+          val char = tokens(2).toList match {
+            case List(c) => Some(c)
+            case _ => None
+          }
+          for {
+            n <- num
+            c <- char
+          } yield Foo(n, c)
         } else None
       }
     }
 
-    // then: `deserialize` should be able to return values of type `Foo`
+    // then: `deserialize` should be able to return values of type `Option[Foo]`
     deserialize[Foo](
       "Foo 123 a".toCharArray.map(_.toByte)
     ) should be(Some(Foo(123, 'a')))

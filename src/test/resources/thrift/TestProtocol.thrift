@@ -1,5 +1,5 @@
-namespace java local.protocol.serialization.thrift.java
-#@namespace scala local.protocol.serialization.thrift.scala
+namespace java local.test.serialization.thrift.java
+#@namespace scala local.test.serialization.thrift.scala
 
 struct TestRecord {
     1: string foo,

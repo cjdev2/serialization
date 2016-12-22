@@ -1,4 +1,4 @@
-@namespace("local.protocol.serialization.avro")
+@namespace("local.test.serialization.avro")
 protocol TestProtocol {
 
     record TestRecord {

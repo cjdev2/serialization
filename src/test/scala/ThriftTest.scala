@@ -4,7 +4,7 @@ class ThriftTest extends FlatSpec with Matchers {
 
   import com.cj.serialization._
   import com.cj.serialization.thrift._
-  import local.protocol.serialization.thrift.scala.TestRecord
+  import local.test.serialization.thrift.scala.TestRecord
 
   behavior of "SerializableThriftStruct"
 

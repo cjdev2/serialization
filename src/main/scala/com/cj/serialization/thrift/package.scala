@@ -1,7 +1,6 @@
 package com.cj.serialization
 
 import com.twitter.scrooge.ThriftStruct
-import local.protocol.serialization.thrift.scala.TestRecord
 
 package object thrift {
 

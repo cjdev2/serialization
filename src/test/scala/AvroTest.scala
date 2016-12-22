@@ -4,7 +4,7 @@ class AvroTest extends FlatSpec with Matchers {
 
   import com.cj.serialization._
   import com.cj.serialization.avro._
-  import local.protocol.serialization.avro.TestRecord
+  import local.test.serialization.avro.TestRecord
 
   behavior of "SerializableSpecificRecord"
 
