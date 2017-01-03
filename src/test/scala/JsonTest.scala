@@ -2,18 +2,19 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class JsonTest extends FlatSpec with Matchers {
 
+  import argonaut._
   import com.cj.serialization._
   import com.cj.serialization.json._
 
-  behavior of "SerializableJsonValue"
+  behavior of "SerializableJson"
 
-  it should "serialize `JsonConstant`s correctly" in {
+  it should "serialize JSON constants correctly" in {
     // given: the software has been written
 
     // when
-    val res1 = serialize(JsonNull)
-    val res2 = serialize(JsonFalse)
-    val res3 = serialize(JsonTrue)
+    val res1 = serialize(Json.jNull)
+    val res2 = serialize(Json.jBool(false))
+    val res3 = serialize(Json.jBool(true))
 
     // then
     res1 should be(serialize("null"))
@@ -21,9 +22,9 @@ class JsonTest extends FlatSpec with Matchers {
     res3 should be(serialize("true"))
   }
 
-  it should "serialize `JsonNumber`s correctly" in {
+  it should "serialize JSON numbers correctly" in {
     // given
-    val jnum = JsonNumber(0.toDouble)
+    val jnum = Json.jNumber(0l)
 
     // when
     val res = serialize(jnum)
@@ -32,9 +33,9 @@ class JsonTest extends FlatSpec with Matchers {
     res should be(serialize("0"))
   }
 
-  it should "serialize `JsonString`s correctly" in {
+  it should "serialize JSON strings correctly" in {
     // given
-    val jstr = JsonString("")
+    val jstr = Json.jString("")
 
     // when
     val res = serialize(jstr)
@@ -43,9 +44,9 @@ class JsonTest extends FlatSpec with Matchers {
     res should be(serialize(s""""""""))
   }
 
-  it should "serialize an empty `JsonArray` correctly" in {
+  it should "serialize an empty JSON array correctly" in {
     // given
-    val arr = JsonArray(Seq())
+    val arr = Json.array()
 
     // when
     val res = serialize(arr)
@@ -54,9 +55,9 @@ class JsonTest extends FlatSpec with Matchers {
     res should be(serialize("[]"))
   }
 
-  it should "serialize an empty `JsonObject` correctly" in {
+  it should "serialize an empty JSON object correctly" in {
     // given
-    val obj = JsonObject(Map())
+    val obj = Json.obj()
 
     // when
     val res = serialize(obj)
@@ -67,7 +68,7 @@ class JsonTest extends FlatSpec with Matchers {
 
   it should "serialize a populated `JsonArray` correctly" in {
     // given
-    val arr = JsonArray(Seq(JsonNumber(0.toDouble), JsonString("")))
+    val arr = Json.array(Json.jNumber(0l), Json.jString(""))
 
     // when
     val res = serialize(arr)
@@ -78,10 +79,10 @@ class JsonTest extends FlatSpec with Matchers {
 
   it should "serialize a populated `JsonObject` correctly" in {
     // given
-    val obj = JsonObject(Map(
-      "value" -> JsonNumber(0.toDouble),
-      "added" -> JsonString("")
-    ))
+    val obj = Json.obj(
+      "value" -> Json.jNumber(0l),
+      "added" -> Json.jString("")
+    )
     val exp = serialize("""{"value":0,"added":""}""")
 
     // when
@@ -91,8 +92,8 @@ class JsonTest extends FlatSpec with Matchers {
     res should be(exp)
   }
 
-  // TODO: DeserializableJsonValue tests
-  behavior of "DeserializableJsonValue"
+  // TODO: DeserializableJson tests
+  behavior of "DeserializableJson"
 
   it should "do the thing" in {
     fail

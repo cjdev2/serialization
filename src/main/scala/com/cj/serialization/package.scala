@@ -11,6 +11,14 @@ package object serialization {
     * As a result, any implementation of `Serializable[T]` is automatically an
     * implementation of `Serializable[S]`.
     *
+    * Implementations must be thread-safe and, when an implementation of
+    * [[Deserializable]]`[T]` is in scope, must satisfy the following laws:
+    *
+    * {{{
+    *   deserialize[T](serialize[T](t)) == Some(t)
+    *   deserialize[T](bytes).map(serialize[T]).flatMap(deserialize[T]) == deserialize[T](bytes)
+    * }}}
+    *
     * @tparam T The class for which you are implementing the [[serialize]]
     *           prefix method
     */
@@ -67,6 +75,14 @@ package object serialization {
     * `Deserializable[T]`. As a result, any implementation of
     * `Deserializable[S]` is automatically an implementation of
     * `Deserializable[T]`.
+    *
+    * Implementations must be thread-safe and, when an implementation of
+    * [[Serializable]]`[T]` is in scope, must satisfy the following laws:
+    *
+    * {{{
+    *   deserialize[T](serialize[T](t)) == Some(t)
+    *   deserialize[T](bytes).map(serialize[T]).flatMap(deserialize[T]) == deserialize[T](bytes)
+    * }}}
     *
     * @tparam T The return type of the [[deserialize]] prefix method that you
     *           are implementing

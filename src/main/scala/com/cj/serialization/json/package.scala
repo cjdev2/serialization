@@ -2,72 +2,57 @@ package com.cj.serialization
 
 package object json {
 
-  sealed trait JsonValue
-  sealed trait JsonConstant extends JsonValue
-  case object JsonNull extends JsonConstant
-  case object JsonFalse extends JsonConstant
-  case object JsonTrue extends JsonConstant
-  case class JsonNumber(num: Double) extends JsonValue
-  case class JsonString(str: String) extends JsonValue
-  case class JsonArray(arr: Seq[JsonValue]) extends JsonValue
-  case class JsonObject(obj: Map[String, JsonValue]) extends JsonValue
+  import argonaut._
+  import Argonaut._
 
-  implicit object SerializableJsonValue extends Serializable[JsonValue] {
-    def serialize(t: JsonValue): Array[Byte] =
-      jsonToString(t).toCharArray.map(_.toByte)
+  implicit object SerializableJson extends Serializable[Json] {
+    def serialize(t: Json): Array[Byte] =
+      implicitly[Serializable[String]].serialize(t.nospaces)
   }
 
-  implicit object DeserializableJsonValue extends Deserializable[JsonValue] {
-    def deserialize(bytes: Array[Byte]): Option[JsonValue] =
-      stringToJson(bytes.map(_.toChar).mkString)
+  implicit object DeserializableJson extends Deserializable[Json] {
+    def deserialize(bytes: Array[Byte]): Option[Json] =
+      implicitly[Deserializable[String]].deserialize(bytes)
+        .flatMap(optStr =>
+          Parse.parse(optStr).fold(_ => None, json => Some(json))
+        )
   }
 
-  class JsonSerializer[T](f: T => JsonValue) extends Serializable[T] {
-    def serialize(t: T): Array[Byte] =
-      implicitly[Serializable[JsonValue]].serialize(f(t))
+  trait JsonSerializer[T] extends Serializable[T] with Deserializable[T] {
+    def toJson(t: T): Json
+    def fromJson(json: Json): Option[T]
+
+    final def serialize(t: T): Array[Byte] =
+      implicitly[Serializable[Json]].serialize(toJson(t))
+
+    final def deserialize(bytes: Array[Byte]): Option[T] =
+      implicitly[Deserializable[Json]].deserialize(bytes).flatMap(fromJson)
   }
 
-  class JsonDeserializer[T](f: JsonValue => T) extends Deserializable[T] {
-    def deserialize(bytes: Array[Byte]): Option[T] =
-      implicitly[Deserializable[JsonValue]].deserialize(bytes).map(f)
+  def toJson[T: JsonSerializer](t: T): Json =
+    implicitly[JsonSerializer[T]].toJson(t)
+
+  def fromJson[T: JsonSerializer](json: Json): Option[T] =
+    implicitly[JsonSerializer[T]].fromJson(json)
+
+  def toJsonString[T: JsonSerializer](t: T): String = toJson(t).nospaces
+
+  def toPrettyJsonString[T: JsonSerializer](t: T): String = toJson(t).spaces2
+
+  def fromJsonString[T: JsonSerializer](string: String): Option[T] =
+    Parse.parse(string).fold(_ => None, json => Some(json)).flatMap(fromJson[T])
+
+  class JsonSerializerFromCodec[T](codec: CodecJson[T])
+    extends JsonSerializer[T] {
+
+    def toJson(t: T): Json = t.asJson(codec)
+    def fromJson(json: Json): Option[T] = json.as[T](codec).toOption
   }
 
-  private def constToString(const: JsonConstant): String = const match {
-    case JsonNull => "null"
-    case JsonFalse => "false"
-    case JsonTrue => "true"
+  class JsonSerializerFromConversions[T](to: T => Json, from: Json => Option[T])
+    extends JsonSerializer[T] {
+
+    def toJson(t: T): Json = to(t)
+    def fromJson(json: Json): Option[T] = from(json)
   }
-
-  private def numToString(num: JsonNumber): String =
-    num.num.toString.split("\\.") match {
-      case Array(str1, "0") => str1
-      case _ => num.num.toString
-    }
-
-  private def strToString(str: JsonString): String = s""""${str.str}""""
-
-  private def combineWithCommas(strs: Seq[String]): String = strs match {
-    case Seq() => ""
-    case _ => strs.foldRight("")(_ ++ "," ++ _).init
-  }
-
-  private def arrToString(arr: JsonArray): String =
-    s"""[${combineWithCommas(arr.arr.map(jsonToString))}]"""
-
-  private def objToString(obj: JsonObject): String = {
-    def pairToString = (pair: (String, JsonValue)) =>
-      s""""${pair._1}":${jsonToString(pair._2)}"""
-
-    s"""{${combineWithCommas(obj.obj.map(pairToString).toSeq)}}"""
-  }
-
-  private def jsonToString(jval: JsonValue): String = jval match {
-    case jval: JsonConstant => constToString(jval)
-    case jval: JsonString => strToString(jval)
-    case jval: JsonNumber => numToString(jval)
-    case jval: JsonArray => arrToString(jval)
-    case jval: JsonObject => objToString(jval)
-  }
-
-  private def stringToJson(jlit: String): Option[JsonValue] = ???
 }
