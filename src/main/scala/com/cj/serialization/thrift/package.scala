@@ -4,24 +4,24 @@ import com.twitter.scrooge.ThriftStruct
 
 package object thrift {
 
- implicit object SerializableThriftStruct extends Serializable[ThriftStruct] {
-   def serialize(t: ThriftStruct): Array[Byte] = {
-     ???
-     Array()
-   }
- }
+  implicit object SerializableThriftStruct extends Serializable[ThriftStruct] {
+    def serialize(t: ThriftStruct): Array[Byte] = {
+      ???
+      Array()
+    }
+  }
 
- class ThriftDeserializable[T <: ThriftStruct] extends Deserializable[T] {
-   def deserialize(bytes: Array[Byte]): Option[T] = {
-     ???
-     None
-   }
- }
+  class ThriftDeserializable[T <: ThriftStruct] extends Deserializable[T] {
+    def deserialize(bytes: Array[Byte]): Option[T] = {
+      ???
+      None
+    }
+  }
 
- def makeThriftDeserializer[T <: ThriftStruct]: Array[Byte] => Option[T] = {
+  def makeThriftDeserializer[T <: ThriftStruct]: Array[Byte] => Option[T] = {
 
-   implicit object DeserializableStruct extends ThriftDeserializable[T]
+    implicit object DeserializableStruct extends ThriftDeserializable[T]
 
-   bytes => deserialize(bytes)
- }
+    bytes => deserialize(bytes)
+  }
 }
