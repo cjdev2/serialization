@@ -40,10 +40,10 @@ object JsonDemo extends App {
   //     fromJsonString(toPrettyJsonString(t)) == Some(t)
   //     deserialize(serialize(t))             == Some(t)
   //
-  //     fromJson(t).map(toJson).flatMap(fromJson)                         == fromJson(t)
-  //     fromJsonString(t).map(toJsonString).flatMap(fromJsonString)       == fromJsonString(t)
-  //     fromJsonString(t).map(toPrettyJsonString).flatMap(fromJsonString) == fromJsonString(t)
-  //     deserialize(t).map(serialize).flatMap(deserialize)                == deserialize(t)
+  //     fromJson(json).map(toJson).flatMap(fromJson)                           == fromJson(json)
+  //     fromJsonString(string).map(toJsonString).flatMap(fromJsonString)       == fromJsonString(string)
+  //     fromJsonString(string).map(toPrettyJsonString).flatMap(fromJsonString) == fromJsonString(string)
+  //     deserialize(bytes).map(serialize).flatMap(deserialize)                 == deserialize(bytes)
   //
   // the contract ensure that our implementation is reasonable and coherent,
   // e.g. two different pathways for deserializing a given message will never

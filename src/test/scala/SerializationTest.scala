@@ -93,6 +93,22 @@ class SerializationTest extends FlatSpec with Matchers {
     result2.get should be(string2)
   }
 
+  it should "handle funky characters" in {
+    // given
+    val stringWithCharacter: String =
+      """{
+        |  "name" : "Daniel",
+        |  "favorite_game" : "¡Pokémon Snap!"
+        |}
+      """.stripMargin
+
+    // when
+    val result: Option[String] = deserialize(serialize(stringWithCharacter))
+
+    // then
+    result.contains(stringWithCharacter) should be(true)
+  }
+
   behavior of "Boolean"
 
   it should "be deserializable" in {
