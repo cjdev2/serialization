@@ -10,7 +10,7 @@ class AvroTest extends FlatSpec with Matchers {
 
   it should "be accessible for TestRecord" in {
     // given: a `TestRecord`
-    val record = new TestRecord("", 0l)
+    val record = new TestRecord("Pokémon", 0l)
 
     // when: we serialize it
     serialize(record)
@@ -67,7 +67,7 @@ class AvroTest extends FlatSpec with Matchers {
 
   it should "be reversible" in {
     // given: a `TestRecord` and an `AvroDeserializable[TestRecord]`
-    val record = new TestRecord("", 0l)
+    val record = new TestRecord("Cañon", 0l)
     implicit object DeserializableTestRecord
       extends AvroDeserializable[TestRecord](TestRecord.getClassSchema)
 
@@ -177,6 +177,6 @@ class AvroTest extends FlatSpec with Matchers {
     val result = scala.util.Try(deserializer(badBytes))
 
     // then
-    result.failed.get.getMessage should be("mkAvroDeserializer: Failed to parse baaaad as Avro class local.protocol.serialization.avro.TestRecord")
+    result.failed.get.getMessage should be("mkAvroDeserializer: Failed to parse baaaad as Avro class local.test.serialization.avro.TestRecord")
   }
 }

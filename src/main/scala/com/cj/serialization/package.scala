@@ -118,6 +118,13 @@ package object serialization {
     */
   object Deserializable {
 
+    implicit object DeserializableByte extends Deserializable[Byte] {
+      def deserialize(bytes: Array[Byte]): Option[Byte] = bytes.length match {
+        case 1 => Option(bytes.head)
+        case _ => None
+      }
+    }
+
     implicit object DeserializableString extends Deserializable[String] {
       def deserialize(bytes: Array[Byte]): Option[String] = Option(
         bytes.map(_.toChar).mkString
@@ -127,61 +134,49 @@ package object serialization {
     private def asString(bytes: Array[Byte]): Option[String] =
       deserialize[String](bytes)
 
-    implicit object DeserializableBoolean extends Deserializable[Boolean] {
-      def deserialize(bytes: Array[Byte]): Option[Boolean] =
-        asString(bytes) match {
-          case Some("false") => Some(false)
-          case Some("true") => Some(true)
-          case _ => None
-        }
-    }
-
-    implicit object DeserializableByte extends Deserializable[Byte] {
-      def deserialize(bytes: Array[Byte]): Option[Byte] = {
-        if (bytes.length == 1)
-          Some(bytes(0))
-        else
-          None
-      }
-    }
-
-    implicit object DeserializableChar extends Deserializable[Char] {
-      def deserialize(bytes: Array[Byte]): Option[Char] = {
-        if (bytes.length == 1)
-          scala.util.Try(bytes(0).toChar).toOption
-        else
-          None
-      }
-    }
-
-    implicit object DeserializableUnit extends Deserializable[Unit] {
-      def deserialize(bytes: Array[Byte]): Option[Unit] =
-        asString(bytes) match {
-          case Some("()") => Some(Unit)
-          case _ => None
-        }
-    }
-
-    class DeserializableAnyVal[T <: AnyVal](f: String => T)
+    class DeserializableAnyVal[T <: AnyVal](f: String => Option[T])
       extends Deserializable[T] {
       def deserialize(bytes: Array[Byte]): Option[T] = {
-        asString(bytes).flatMap(x => scala.util.Try(f(x)).toOption)
+        asString(bytes).flatMap(f)
       }
+    }
+
+    implicit object DeserializableChar
+      extends DeserializableAnyVal[Char](string => string.length match {
+        case 1 => scala.util.Try(string.charAt(0)).toOption
+        case _ => None
+      })
+
+    implicit object DeserializableBoolean
+      extends DeserializableAnyVal[Boolean]({
+        case "false" => Some(false)
+        case "true" => Some(true)
+        case _ => None
+      })
+
+    private def makeSafe[A, B](f: A => B): (A => Option[B]) = {
+      a => scala.util.Try(f(a)).toOption
     }
 
     implicit object DeserializableDouble
-      extends DeserializableAnyVal[Double](_.toDouble)
+      extends DeserializableAnyVal[Double](makeSafe(_.toDouble))
 
     implicit object DeserializableFloat
-      extends DeserializableAnyVal[Float](_.toFloat)
+      extends DeserializableAnyVal[Float](makeSafe(_.toFloat))
 
     implicit object  DeserializableInt
-      extends DeserializableAnyVal[Int](_.toInt)
+      extends DeserializableAnyVal[Int](makeSafe(_.toInt))
 
     implicit object DeserializableLong
-      extends DeserializableAnyVal[Long](_.toLong)
+      extends DeserializableAnyVal[Long](makeSafe(_.toLong))
 
     implicit object DeserializableShort
-      extends DeserializableAnyVal[Short](_.toShort)
+      extends DeserializableAnyVal[Short](makeSafe(_.toShort))
+
+    implicit object DeserializableUnit
+      extends DeserializableAnyVal[Unit]({
+        case "()" => Some(())
+        case _ => None
+      })
   }
 }
