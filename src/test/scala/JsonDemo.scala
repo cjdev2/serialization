@@ -19,7 +19,7 @@ object JsonDemo extends App {
     // argonaut does the hard parts, it just needs us to give it a few hints
     Argonaut.casecodec4
       (Person.apply, Person.unapply)
-      ("name", "age", "things", "mother")
+      ("prénom", "âge", "des_choses", "mère") // name the fields whatever
     // we use `casecodec4` because `Person` has four fields
   )
 
@@ -77,12 +77,13 @@ object JsonDemo extends App {
   // it's easy to create `Json` values in native Scala (though you often won't
   // need to do any `Json` manipulation like this)
   val person2: Json = Json(
-    "name" -> Json.jString("Batman"),
-    "age" -> Json.jNumber(38),
-    "things" -> Json.array(
+    "prénom" -> Json.jString("Batman"),
+    "âge" -> Json.jNumber(38),
+    "des_choses" -> Json.array(
       Json.jString("Batarang"),
       Json.jString("Batmobile")
     )
+    // notice the "mère" property is absent
   )
 
   assert(
@@ -102,13 +103,13 @@ object JsonDemo extends App {
   // what kind of JSON library would be complete without parsing JSON strings?
   val person3: String =
     """{
-      |  "name" : "Bruce Wayne",
-      |  "age" : 38,
-      |  "things" : [
+      |  "prénom" : "Bruce Wayne",
+      |  "âge" : 38,
+      |  "des_choses" : [
       |    "Money",
       |    "Alfred"
       |  ],
-      |  "mother" : "Martha Wayne"
+      |  "mère" : "Martha Wayne"
       |}""".stripMargin
 
   assert(
@@ -120,13 +121,13 @@ object JsonDemo extends App {
   assert({
     // A JSON string can be parsed into a native `Json`
     deserialize[Json](serialize(person3)).contains(Json(
-      "name" -> Json.jString("Bruce Wayne"),
-      "age" -> Json.jNumber(38),
-      "things" -> Json.array(
+      "prénom" -> Json.jString("Bruce Wayne"),
+      "âge" -> Json.jNumber(38),
+      "des_choses" -> Json.array(
         Json.jString("Money"),
         Json.jString("Alfred")
       ),
-      "mother" -> Json.jString("Martha Wayne")
+      "mère" -> Json.jString("Martha Wayne")
     ))
   })
   assert(

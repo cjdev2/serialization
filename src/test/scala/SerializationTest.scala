@@ -93,12 +93,12 @@ class SerializationTest extends FlatSpec with Matchers {
     result2.get should be(string2)
   }
 
-  it should "handle funky characters" in {
+  it should "handle non-ascii characters" in {
     // given
     val stringWithCharacter: String =
       """{
-        |  "name" : "Daniel",
-        |  "favorite_game" : "¡Pokémon Snap!"
+        |  "prénom" : "Brešar",
+        |  "mère" : "ßoë"
         |}
       """.stripMargin
 

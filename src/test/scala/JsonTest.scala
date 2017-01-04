@@ -5,7 +5,6 @@ class JsonTest extends FlatSpec with Matchers {
   import argonaut._
   import com.cj.serialization._
   import com.cj.serialization.json._
-
   import TestTools._
 
   behavior of "JsonSerializerJson"
@@ -116,24 +115,7 @@ class JsonTest extends FlatSpec with Matchers {
     res should be(exp)
   }
 
-  it should "satisfy the first half of its contract (so vague)" in {
-    // given
-    val testCases = Seq(
-      jsonTim,
-      jsonBruce,
-      jsonBatman,
-      jsonNested,
-      jsonWithCharacter,
-      jsonBruceFrench
-    )
-
-    // when: a JsonSerializer[Json] is in scope
-
-    // then
-    testCases.foreach(leftInverseTestCase[Json])
-  }
-
-  it should "satisfy the second half of its contract (so vague)" in {
+  it should "satisfy its contract" in {
     // given
     val jsonTestCases = Seq[Json](
       jsonTim,
@@ -151,24 +133,172 @@ class JsonTest extends FlatSpec with Matchers {
       stringWithCharacter,
       stringBruceFrench
     )
-//    val bytesTestCases = Seq[Array[Byte]](
-//      bytesTim,
-//      bytesBruce,
-//      bytesBatman,
-//      bytesNested,
-//      bytesWithCharacter,
-//      bytesBruceFrench
-//    )
+    val bytesTestCases = Seq[Array[Byte]](
+      bytesTim,
+      bytesBruce,
+      bytesBatman,
+      bytesNested,
+      bytesWithCharacter,
+      bytesBruceFrench
+    )
 
     // when: a JsonSerializer[Json] is in scope
+    // included by `import com.cj.serialization.json._`
 
     // then
+    jsonTestCases.foreach(leftInverseTestCase[Json])
     jsonTestCases.foreach(jsonRightPseudoInverseTestCase[Json])
     stringTestCases.foreach(stringRightPseudoInverseTestCase[Json])
-//    bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Json])
+    bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Json])
+  }
+
+  behavior of "JsonSerializerFromCodec"
+
+  it should "satisfy its contract when `T = Person`" in {
+    // give
+    val personTestCases = Seq[Person](
+      personTim,
+      personBruce,
+      personBatman
+    )
+    val jsonTestCases = Seq[Json](
+      jsonTim,
+      jsonBruce,
+      jsonBatman
+    )
+    val stringTestCases = Seq[String](
+      stringTim,
+      stringBruce,
+      stringBatman
+    )
+    val bytesTestCases = Seq[Array[Byte]](
+      bytesTim,
+      bytesBruce,
+      bytesBatman
+    )
+
+    // when: JsonSerializerFromCodec creates a JsonSerializer[Pair]
+    implicit object PersonSerializer extends JsonSerializerFromCodec[Person](
+      Argonaut.casecodec4
+        (Person.apply, Person.unapply)
+        ("name", "age", "things", "mother")
+    )
+
+    // then
+    personTestCases.foreach(leftInverseTestCase[Person])
+    jsonTestCases.foreach(jsonRightPseudoInverseTestCase[Person])
+    stringTestCases.foreach(stringRightPseudoInverseTestCase[Person])
+    bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Person])
+  }
+
+  it should "satisfy its contract when `T = Pair`" in {
+    // given
+    val pairTestCases = Seq[Pair](
+      pair
+    )
+    val jsonTestCases = Seq[Json](
+      jsonPair1
+    )
+    val stringTestCases = Seq[String](
+      stringPair1
+    )
+    val bytesTestCases = Seq[Array[Byte]](
+      bytesPair1
+    )
+
+    // when: JsonSerializerFromCodec creates a JsonSerializer[Pair]
+    implicit object PairSerializer extends JsonSerializerFromCodec[Pair]({
+
+      implicit def keyCodec =
+        Argonaut.casecodec1(Key.apply, Key.unapply)("get")
+
+      implicit def valueCodec =
+        Argonaut.casecodec1(Value.apply, Value.unapply)("get")
+
+      Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
+    })
+
+    // then
+    pairTestCases.foreach(leftInverseTestCase[Pair])
+    jsonTestCases.foreach(jsonRightPseudoInverseTestCase[Pair])
+    stringTestCases.foreach(stringRightPseudoInverseTestCase[Pair])
+    bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Pair])
+  }
+
+  behavior of "JsonSerializerFromConverters"
+
+  it should "satisfy its contract" in {
+    // given
+    val pairTestCases = Seq[Pair](
+      pair
+    )
+    val jsonTestCases = Seq[Json](
+      jsonPair2
+    )
+    val stringTestCases = Seq[String](
+      stringPair2
+    )
+    val bytesTestCases = Seq[Array[Byte]](
+      bytesPair2
+    )
+
+    // when: JsonSerializerFromConverters creates a JsonSerializer[Pair]
+    implicit object PairSerializer
+      extends JsonSerializerFromConverters[Pair](
+        to = pairToJson,
+        from = jsonToPair
+      )
+
+    // then
+    pairTestCases.foreach(leftInverseTestCase[Pair])
+    jsonTestCases.foreach(jsonRightPseudoInverseTestCase[Pair])
+    stringTestCases.foreach(stringRightPseudoInverseTestCase[Pair])
+    bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Pair])
   }
 
   object TestTools {
+
+    case class Key(get: Int)
+    case class Value(get: String)
+    case class Pair(key: Key, value: Value)
+
+    val pair = Pair(Key(5),Value("foo"))
+
+    val jsonPair1 = Json(
+      "key" -> Json("get" -> Json.jNumber(5)),
+      "value" -> Json("get" -> Json.jString("foo"))
+    )
+
+    val stringPair1 =
+      s"""{
+         |  "key" : { "get" : 5 },
+         |  "value" : { "get" : "foo }
+         |}""".stripMargin
+
+    val bytesPair1 = stringPair1.getBytes("UTF-8")
+
+    def pairToJson(pair: Pair): Json = Json(
+      "key" -> Json.jNumber(pair.key.get),
+      "value" -> Json.jString(pair.value.get)
+    )
+
+    def jsonToPair(json: Json): Option[Pair] = for {
+      propList <- json.assoc
+      keyJson <- propList.toMap.get("key")
+      keyJNum <- keyJson.number
+      key <- keyJNum.toInt
+      valueJson <- propList.toMap.get("value")
+      value <- valueJson.string
+    } yield Pair(Key(key), Value(value))
+
+    val jsonPair2 = Json(
+      "key" -> Json.jNumber(5),
+      "value" -> Json.jString("foo")
+    )
+
+    val stringPair2 = """{"key":5,"value":"foo"}"""
+
+    val bytesPair2 = stringPair2.getBytes("UTF-8")
 
     case class Person(
                        name: String,
@@ -313,17 +443,17 @@ class JsonTest extends FlatSpec with Matchers {
         |  "mère" : "Martha Wayne"
         |}""".stripMargin
 
-//    val bytesTim = ???
-//
-//    val bytesBruce = ???
-//
-//    val bytesBatman = ???
-//
-//    val bytesNested = ???
-//
-//    val bytesWithCharacter = ???
-//
-//    val bytesBruceFrench = ???
+    val bytesTim = stringTim.getBytes("UTF-8")
+
+    val bytesBruce = stringBruce.getBytes("UTF-8")
+
+    val bytesBatman = stringBatman.getBytes("UTF-8")
+
+    val bytesNested = stringNested.getBytes("UTF-8")
+
+    val bytesWithCharacter = stringWithCharacter.getBytes("UTF-8")
+
+    val bytesBruceFrench = stringBruceFrench.getBytes("UTF-8")
 
     def leftInverseTestCase[T: JsonSerializer](t: T): Unit = {
       assert(
