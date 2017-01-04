@@ -107,7 +107,7 @@ package object serialization {
   /**
     * Some default instances of [[Deserializable]]`[T]` for various `T`s.
     *
-    * These instances are only accessible if the user does not provide their own
+    * These instances are accessible only if the user does not provide their own
     * instances. E.g., the user may override the library implementation of
     * `Deserializable[String]` simply by creating their own implementation:
     * {{{
@@ -118,16 +118,9 @@ package object serialization {
     */
   object Deserializable {
 
-    implicit object DeserializableByte extends Deserializable[Byte] {
-      def deserialize(bytes: Array[Byte]): Option[Byte] = bytes.length match {
-        case 1 => Option(bytes.head)
-        case _ => None
-      }
-    }
-
     implicit object DeserializableString extends Deserializable[String] {
       def deserialize(bytes: Array[Byte]): Option[String] = Option(
-        bytes.map(_.toChar).mkString
+        bytes.map((x: Byte) => x.toChar).mkString
       )
     }
 
@@ -141,9 +134,15 @@ package object serialization {
       }
     }
 
+    implicit object DeserializableByte
+      extends DeserializableAnyVal[Byte](string => string.length match {
+        case 1 => string.headOption.map(_.toByte)
+        case _ => None
+      })
+
     implicit object DeserializableChar
       extends DeserializableAnyVal[Char](string => string.length match {
-        case 1 => scala.util.Try(string.charAt(0)).toOption
+        case 1 => string.headOption
         case _ => None
       })
 

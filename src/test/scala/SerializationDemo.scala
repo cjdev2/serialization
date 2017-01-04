@@ -1,4 +1,4 @@
-object Demo extends App {
+object SerializationDemo extends App {
 
   import com.cj.serialization._
 

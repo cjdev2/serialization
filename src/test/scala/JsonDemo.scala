@@ -5,6 +5,7 @@ object JsonDemo extends App {
 
   import argonaut.{Argonaut, Json}
 
+  // some grade-A, domain-driven case class action right here
   case class Person(
                      name: String,
                      age: Int,
@@ -60,7 +61,6 @@ object JsonDemo extends App {
     // our `Person` survives `Json`-ification
     fromJson[Person](toJson(person1)).contains(person1)
   )
-
   assert(
     // our `Person` survives Stringification
     fromJsonString[Person](toJsonString(person1)).contains(person1)
@@ -76,7 +76,7 @@ object JsonDemo extends App {
 
   // it's easy to create `Json` values in native Scala (though you often won't
   // need to do any `Json` manipulation like this)
-  val person2: Json = Json.obj(
+  val person2: Json = Json(
     "name" -> Json.jString("Batman"),
     "age" -> Json.jNumber(38),
     "things" -> Json.array(
@@ -91,7 +91,6 @@ object JsonDemo extends App {
       Person("Batman", 38, List("Batarang", "Batmobile"), None)
     )
   )
-
   assert(
     // `Json` survives `Person`-ification
     fromJson[Person](person2)
@@ -118,10 +117,9 @@ object JsonDemo extends App {
       Person("Bruce Wayne", 38, List("Money", "Alfred"), Some("Martha Wayne"))
     )
   )
-
   assert({
     // A JSON string can be parsed into a native `Json`
-    deserialize[Json](serialize(person3)).contains(Json.obj(
+    deserialize[Json](serialize(person3)).contains(Json(
       "name" -> Json.jString("Bruce Wayne"),
       "age" -> Json.jNumber(38),
       "things" -> Json.array(
@@ -131,18 +129,37 @@ object JsonDemo extends App {
       "mother" -> Json.jString("Martha Wayne")
     ))
   })
-
   assert(
     // of course the `serialize` and `deserialize` methods for `String` still
     // work as we'd expect
     deserialize[String](serialize(person3)).contains(person3)
   )
-
   assert(
     // our JSON string survives a round trip
     fromJsonString[Person](person3)
       .map(toJsonString[Person])
       .flatMap(fromJsonString[Person])
       == fromJsonString[Person](person3)
+  )
+
+  // go ahead, make a nested case class
+  case class Key(get: Int)
+  case class Value(get: String)
+  case class Pair(key: Key, value: Value)
+
+  // the invocation is a bit more complicated
+  implicit object PairSerializer extends JsonSerializerFromCodec[Pair]({
+    implicit def keyCodec =
+      Argonaut.casecodec1(Key.apply, Key.unapply)("get")
+    implicit def valueCodec =
+      Argonaut.casecodec1(Value.apply, Value.unapply)("get")
+    Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
+  })
+
+  val pair: Pair = Pair(Key(5), Value("foo"))
+
+  assert(
+    // but it works like a charm
+    toJsonString(pair) == """{"key":{"get":5},"value":{"get":"foo"}}"""
   )
 }

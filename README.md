@@ -85,7 +85,7 @@ assert(
 )
 ```
 
-See "src/test/scala/Demo.scala" for details.
+See "src/test/scala/SerializationDemo.scala" for details.
 
 ### JSON Features
 

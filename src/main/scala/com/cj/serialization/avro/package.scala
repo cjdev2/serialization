@@ -84,9 +84,9 @@ package object avro {
   def makeAvroDeserializer[T >: Null <: SpecificRecord](schema: Schema)
   : Array[Byte] => Option[T] = {
 
-    implicit object DeserializableRecord extends AvroDeserializable[T](schema)
+    object DeserializableRecord extends AvroDeserializable[T](schema)
 
-    bytes => deserialize(bytes)
+    bytes => DeserializableRecord.deserialize(bytes)
   }
 
   /* Legacy API */
