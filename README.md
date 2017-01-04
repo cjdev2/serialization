@@ -92,6 +92,7 @@ See "src/test/scala/SerializationDemo.scala" for details.
 In addition to importing core features, import JSON feastures as:
 
 ```scala
+import argonaut.{Argonaut, Json}
 import com.cj.serialization.json._
 ```
 
