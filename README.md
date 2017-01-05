@@ -1,6 +1,6 @@
 # Serialization
 
-Serialization library exposing a typeclass-based functional interface for Scala 2.11 and 2.12.
+Serialization library exposing a typeclass-like functional interface for Scala 2.11 and 2.12.
 
 Copyright © 2016 CJ Affiliate under the terms of the MIT License. See "LICENSE" for details.
 
@@ -71,7 +71,7 @@ implicit object FooDeserializer extends Deserializable[Foo] {
 val fooVal: Foo = Foo(1234)
 serialize(fooVal) // returns a value of type `Array[Byte]`
 
-val fooBytes: Array[Byte] = "Person(5678)".toCharArray.map(_.toByte)
+val fooBytes: Array[Byte] = "Foo(5678)".getBytes
 deserialize[Foo](fooBytes) // returns a value of type `Option[Foo]`
 
 assert(
@@ -81,7 +81,7 @@ assert(
 assert(
   // serialized `Foo` survives a round trip
   deserialize[Foo](fooBytes).map(serialize[Foo]).flatMap(deserialize[Foo])
-  == deserialize[Foo](fooBytes)
+    == deserialize[Foo](fooBytes)
 )
 ```
 
