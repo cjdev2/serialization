@@ -52,13 +52,13 @@ case class Foo(bar: Int)
 // implement `serialize`
 implicit object FooSerializer extends Serializable[Foo] {
   def serialize(t: Foo): Array[Byte] =
-    t.toString.toCharArray.map(_.toByte)
+    t.toString.getBytes
 }
 
 // implement `deserialize` (always the hard part)
 implicit object FooDeserializer extends Deserializable[Foo] {
   def deserialize(bytes: Array[Byte]): Option[Foo] = {
-    val string: String = bytes.map(_.toChar).mkString
+    val string: String = new String(bytes)
     val regex = "Foo\\((\\d+)\\)".r
 
     string match {

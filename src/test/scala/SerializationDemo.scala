@@ -6,12 +6,12 @@ object SerializationDemo extends App {
 
   implicit object FooSerializer extends Serializable[Foo] {
     def serialize(t: Foo): Array[Byte] =
-      t.toString.toCharArray.map(_.toByte)
+      t.toString.getBytes
   }
 
   implicit object FooDeserializer extends Deserializable[Foo] {
     def deserialize(bytes: Array[Byte]): Option[Foo] = {
-      val string: String = bytes.map(_.toChar).mkString
+      val string: String = new String(bytes)
       val regex = "Foo\\((\\d+)\\)".r
 
       string match {
@@ -24,7 +24,7 @@ object SerializationDemo extends App {
   val fooVal: Foo = Foo(1234)
   serialize(fooVal) // returns a value of type `Array[Byte]`
 
-  val fooBytes: Array[Byte] = "Person(5678)".toCharArray.map(_.toByte)
+  val fooBytes: Array[Byte] = "Person(5678)".getBytes
   deserialize[Foo](fooBytes) // returns a value of type `Option[Foo]`
 
   assert(

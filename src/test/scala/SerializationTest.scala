@@ -13,11 +13,11 @@ class SerializationTest extends FlatSpec with Matchers {
     // when: we implement `Serializable[Foo]`
     implicit object SerializableFoo extends Serializable[Foo] {
       def serialize(t: Foo): Array[Byte] =
-        s"""Foo ${t.bar} ${t.baz}""".toCharArray.map(_.toByte)
+        s"""Foo ${t.bar} ${t.baz}""".getBytes
     }
 
     // then: `serialize` should be available for arguments of type `Foo`
-    serialize(Foo(0,'c')) should be("Foo 0 c".toCharArray.map(_.toByte))
+    serialize(Foo(0,'c')) should be("Foo 0 c".getBytes)
   }
 
   behavior of "Deserializable"
@@ -30,7 +30,7 @@ class SerializationTest extends FlatSpec with Matchers {
     implicit object DeserializableFoo extends Deserializable[Foo] {
       def deserialize(bytes: Array[Byte]): Option[Foo] = {
 
-        val tokens = bytes.map(_.toChar).mkString.split(" ")
+        val tokens = new String(bytes).split(" ")
 
         if (tokens.length == 3 && tokens(0) == "Foo") {
           val num = scala.util.Try(tokens(1).toInt).toOption
@@ -48,7 +48,7 @@ class SerializationTest extends FlatSpec with Matchers {
 
     // then: `deserialize` should be able to return values of type `Option[Foo]`
     deserialize[Foo](
-      "Foo 123 a".toCharArray.map(_.toByte)
+      "Foo 123 a".getBytes
     ) should be(Some(Foo(123, 'a')))
   }
 
@@ -56,8 +56,8 @@ class SerializationTest extends FlatSpec with Matchers {
 
   it should "be deserializable" in {
     // given
-    val bytes1: Array[Byte] = "foo".toCharArray.map(_.toByte)
-    val bytes2: Array[Byte] = "".toCharArray.map(_.toByte)
+    val bytes1: Array[Byte] = "foo".getBytes
+    val bytes2: Array[Byte] = "".getBytes
 
     // when
     val result1: Option[String] = deserialize(bytes1)
@@ -113,9 +113,9 @@ class SerializationTest extends FlatSpec with Matchers {
 
   it should "be deserializable" in {
     // given
-    val bytes1: Array[Byte] = "foo".toCharArray.map(_.toByte)
-    val bytes2: Array[Byte] = "false".toCharArray.map(_.toByte)
-    val bytes3: Array[Byte] = "true".toCharArray.map(_.toByte)
+    val bytes1: Array[Byte] = "foo".getBytes
+    val bytes2: Array[Byte] = "false".getBytes
+    val bytes3: Array[Byte] = "true".getBytes
 
     // when
     val result1: Option[Boolean] = deserialize(bytes1)
@@ -159,9 +159,9 @@ class SerializationTest extends FlatSpec with Matchers {
 
   it should "be deserializable" in {
     // given
-    val bytes1: Array[Byte] = "foo".toCharArray.map(_.toByte)
-    val bytes2: Array[Byte] = "f".toCharArray.map(_.toByte)
-    val bytes3: Array[Byte] = "".toCharArray.map(_.toByte)
+    val bytes1: Array[Byte] = "foo".getBytes
+    val bytes2: Array[Byte] = "f".getBytes
+    val bytes3: Array[Byte] = "".getBytes
 
     // when
     val result1: Option[Byte] = deserialize(bytes1)
@@ -200,9 +200,9 @@ class SerializationTest extends FlatSpec with Matchers {
 
   it should "be deserializable" in {
     // given
-    val bytes1: Array[Byte] = "foo".toCharArray.map(_.toByte)
-    val bytes2: Array[Byte] = "f".toCharArray.map(_.toByte)
-    val bytes3: Array[Byte] = "".toCharArray.map(_.toByte)
+    val bytes1: Array[Byte] = "foo".getBytes
+    val bytes2: Array[Byte] = "f".getBytes
+    val bytes3: Array[Byte] = "".getBytes
 
     // when
     val result1: Option[Char] = deserialize(bytes1)
