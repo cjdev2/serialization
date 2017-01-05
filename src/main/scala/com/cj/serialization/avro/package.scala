@@ -20,13 +20,13 @@ package object avro {
   implicit object SerializableSpecificRecord
     extends Serializable[SpecificRecord] {
 
+    private val factory = EncoderFactory.get
+
     def serialize(t: SpecificRecord): Array[Byte] = {
       val output = new java.io.ByteArrayOutputStream
-      val writer = new SpecificDatumWriter[SpecificRecord]
-      val encoder = EncoderFactory.get.binaryEncoder(output, null)
+      val encoder = factory.binaryEncoder(output, null)
 
-      writer.setSchema(t.getSchema)
-      writer.write(t, encoder)
+      new SpecificDatumWriter[SpecificRecord](t.getSchema).write(t, encoder)
       encoder.flush()
       output.close()
       output.toByteArray
@@ -52,18 +52,17 @@ package object avro {
   class AvroDeserializable[T >: Null <: SpecificRecord](schema: Schema)
     extends Deserializable[T] {
 
-    private val reader =
-      new SpecificDatumReader[T](schema)
-
-    private var decoder =
-      DecoderFactory.get.binaryDecoder(Array[Byte](), null)
+    private val reader = new SpecificDatumReader[T](schema)
+    private val factory = DecoderFactory.get
 
     def deserialize(bytes: Array[Byte]): Option[T] = {
-      decoder = DecoderFactory.get.binaryDecoder(bytes, decoder)
-      scala.util.Try(reader.read(null, decoder)).toOption.flatMap({
-        case null => None
-        case t => Some(t)
-      })
+      val decoder = factory.binaryDecoder(bytes, null)
+
+      scala.util.Try(reader.read(null, decoder)).toOption
+        .flatMap({
+          case null => None
+          case t => Some(t)
+        })
     }
   }
 
