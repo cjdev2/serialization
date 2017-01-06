@@ -47,10 +47,16 @@ package object json {
   }
 
   class JsonSerializerFromCodec[T](codec: CodecJson[T])
-    extends JsonSerializer[T] {
+    extends JsonSerializer[T]
+    with EncodeJson[T]
+    with DecodeJson[T] {
 
     def toJson(t: T): Json = t.asJson(codec)
     def fromJson(json: Json): Option[T] = json.as[T](codec).toOption
+
+    def encode(a: T): Json = a.asJson(codec)
+    def decode(c: HCursor): DecodeResult[T] = c.as[T](codec)
+    def getCodec: CodecJson[T] = codec
   }
 
   class JsonSerializerFromConverters[T](to: T => Json, from: Json => Option[T])
