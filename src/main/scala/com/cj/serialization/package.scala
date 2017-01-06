@@ -138,10 +138,7 @@ package object serialization {
       def deserialize(bytes: Array[Byte]): Option[T] =
         implicitly[Deserializable[String]].deserialize(bytes)
           .flatMap(string => scala.util.Try(parse(string)).toOption)
-          .flatMap({              // I'm worried about `null`s, but perhaps
-            case t: T => Some(t)  //   (1) my worry is unfounded, or
-            case _ => None        //   (2) my approach is inadequate
-          })                      // TODO: meditate on `null`s
+          // TODO: meditate on `null`s
     }
 
     implicit object DeserializableChar
