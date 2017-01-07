@@ -2,7 +2,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class JsonTest extends FlatSpec with Matchers {
 
-  import argonaut._
+  import argonaut.{Argonaut, Json}
   import com.cj.serialization._
   import com.cj.serialization.json._
   import TestTools._

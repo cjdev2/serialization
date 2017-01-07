@@ -35,7 +35,7 @@ class SerializationTest extends FlatSpec with Matchers {
         if (tokens.length == 3 && tokens(0) == "Foo") {
           val num = scala.util.Try(tokens(1).toInt).toOption
           val char = tokens(2).toList match {
-            case List(c) => Some(c)
+            case List(c) => Option(c)
             case _ => None
           }
           for {

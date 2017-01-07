@@ -51,6 +51,23 @@ class AvroTest extends FlatSpec with Matchers {
     z should be (true)
   }
 
+  it should "create output readable by other Avro clients" in {
+    // given: a bunch of serialized `TestRecord`s
+    val records = for {
+      s <- 'a'.to('z').map(_.toString)
+      n <- 0l.to(9l)
+    } yield new TestRecord(s, n)
+    val serializedRecords = records.map(serialize[TestRecord])
+
+    // when: another Avro client deserializes them
+    val results = serializedRecords.map(
+      local.test.serialization.avro.MinimalAvroDeserializer.deserialize
+    )
+
+    // then
+    results should be(records)
+  }
+
   behavior of "AvroDeserializable[T]"
 
   it should "be able to create a `Deserializable[TestRecord]`" in {
@@ -91,6 +108,48 @@ class AvroTest extends FlatSpec with Matchers {
     result should be(None)
   }
 
+  it should "be usable concurrently" in {
+    // given: a bunch of serialized `TestRecord`s
+    val records = for {
+      s <- 'a'.to('z').map(_.toString)
+      n <- 0l.to(9l)
+    } yield new TestRecord(s, n)
+    val serializedRecords = records.map(serialize[TestRecord])
+
+    // when: we deserialize them concurrently
+    implicit object DeserializableTestRecord
+      extends AvroDeserializable[TestRecord](TestRecord.getClassSchema)
+
+    val strictResult = serializedRecords.map(deserialize[TestRecord])
+    val concurrentResult = serializedRecords.par.map(deserialize[TestRecord])
+
+    // then: the results should be the same
+    val z =
+      strictResult.zip(concurrentResult)
+        .map({ case (r1, r2) => r1 == r2 }).reduce(_ && _)
+    z should be(true)
+  }
+
+  it should "read input created by other Avro clients" in {
+    // given: a bunch of `TestRecord`s serialized by someone else
+    val records = for {
+      s <- 'a'.to('z').map(_.toString)
+      n <- 0l.to(9l)
+    } yield new TestRecord(s, n)
+    val serializedRecords = records.map(
+      local.test.serialization.avro.MinimalAvroSerializer.serialize
+    )
+
+    // when: we deserialize them
+    implicit object DeserializableTestRecord
+      extends AvroDeserializable[TestRecord](TestRecord.getClassSchema)
+
+    val results = serializedRecords.map(deserialize[TestRecord])
+
+    // then
+    results.map(_.get) should be(records)
+  }
+
   behavior of "makeAvroDeserializer"
 
   it should "provide an alternative API for deserializing Avro" in {
@@ -111,7 +170,9 @@ class AvroTest extends FlatSpec with Matchers {
   // SomeRecord is native Scala class
   case class SomeRecord(imAString: String, imALong: Long)
 
-  "TestRecord" should "survive serialization-deserialization" in {
+  behavior of "TestRecord"
+
+  it should "survive serialization-deserialization" in {
     // given: a TestRecord
     val record = new TestRecord("foo", 1l)
 
@@ -129,7 +190,7 @@ class AvroTest extends FlatSpec with Matchers {
     result should be(record)
   }
 
-  "TestRecord" should "survive serialization-deserialization when reusing (de)serializer" in {
+  it should "survive serialization-deserialization when reusing (de)serializer" in {
     // given: a TestRecord
     val record1 = new TestRecord("foo", 1l)
     val record2 = new TestRecord("foo2", 2l)
@@ -149,7 +210,9 @@ class AvroTest extends FlatSpec with Matchers {
     result2 should be(record2)
   }
 
-  "SomeRecord" should "survive encoding-decoding" in {
+  behavior of "SomeRecord"
+
+  it should "survive encoding-decoding" in {
     // given: a SomeRecord
     val record = SomeRecord("foo", 1l)
     def someRecordToAvro: SomeRecord => TestRecord = {
@@ -168,7 +231,9 @@ class AvroTest extends FlatSpec with Matchers {
     result should be(Some(record))
   }
 
-  "mkAvroDeserializer" should "return a deserializer that throws if deserialization fails" in {
+  behavior of "mkAvroDeserializer"
+
+  it should "return a deserializer that throws if deserialization fails" in {
     // given: some bad bytes
     val badBytes = "baaaad".toCharArray.map(_.toByte)
     val deserializer = mkAvroDeserializer[TestRecord](TestRecord.getClassSchema)

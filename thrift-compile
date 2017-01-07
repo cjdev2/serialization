@@ -1,0 +1,6 @@
+#!/bin/bash
+
+mkdir -p src/test/java
+
+thrift -gen java -out src/test/java \
+src/test/resources/thrift/TestProtocol.thrift

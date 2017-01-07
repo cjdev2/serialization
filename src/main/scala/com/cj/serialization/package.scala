@@ -16,7 +16,9 @@ package object serialization {
     *
     * {{{
     *   deserialize[T](serialize[T](t)) == Some(t)
-    *   deserialize[T](bytes).map(serialize[T]).flatMap(deserialize[T]) == deserialize[T](bytes)
+    *
+    *   deserialize[T](bytes).map(serialize[T]).flatMap(deserialize[T])
+    *     == deserialize[T](bytes)
     * }}}
     *
     * @tparam T The class for which you are implementing the [[serialize]]
@@ -81,7 +83,9 @@ package object serialization {
     *
     * {{{
     *   deserialize[T](serialize[T](t)) == Some(t)
-    *   deserialize[T](bytes).map(serialize[T]).flatMap(deserialize[T]) == deserialize[T](bytes)
+    *
+    *   deserialize[T](bytes).map(serialize[T]).flatMap(deserialize[T])
+    *     == deserialize[T](bytes)
     * }}}
     *
     * @tparam T The return type of the [[deserialize]] prefix method that you
@@ -138,6 +142,7 @@ package object serialization {
       def deserialize(bytes: Array[Byte]): Option[T] =
         implicitly[Deserializable[String]].deserialize(bytes)
           .flatMap(string => scala.util.Try(parse(string)).toOption)
+          .flatMap(Option.apply)
     }
 
     implicit object DeserializableChar
