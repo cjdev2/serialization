@@ -4,6 +4,10 @@ class SerializationTest extends FlatSpec with Matchers {
 
   import com.cj.serialization._
 
+  "SerializationDemo" should "not be out of date" in {
+    SerializationDemo.main(args = Array[String]())
+  }
+
   behavior of "Serializable"
 
   it should "be open to post-hoc implementations" in {

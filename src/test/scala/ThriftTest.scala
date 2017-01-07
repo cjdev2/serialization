@@ -6,6 +6,10 @@ class ThriftTest extends FlatSpec with Matchers {
   import com.cj.serialization.thrift._
   import local.test.serialization.thrift.scala.TestRecord
 
+  "ThriftDemo" should "not be out of date" in {
+    ThriftDemo.main(args = Array[String]())
+  }
+
   behavior of "ThriftSerializer"
 
   ignore should "be accessible for TestRecord" in {

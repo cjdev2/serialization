@@ -6,6 +6,10 @@ class AvroTest extends FlatSpec with Matchers {
   import com.cj.serialization.avro._
   import local.test.serialization.avro.TestRecord
 
+  "AvroDemo" should "not be out of date" in {
+    AvroDemo.main(args = Array[String]())
+  }
+
   behavior of "SerializableSpecificRecord"
 
   it should "be accessible for TestRecord" in {

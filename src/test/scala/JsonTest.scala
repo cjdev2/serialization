@@ -7,6 +7,10 @@ class JsonTest extends FlatSpec with Matchers {
   import com.cj.serialization.json._
   import TestTools._
 
+  "JsonDemo" should "not be out of date" in {
+    JsonDemo.main(args = Array[String]())
+  }
+
   behavior of "JsonSerializerJson"
 
   it should "serialize JSON constants correctly" in {
