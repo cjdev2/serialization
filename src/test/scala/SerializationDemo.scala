@@ -15,7 +15,7 @@ object SerializationDemo extends App {
       val regex = "Foo\\((\\d+)\\)".r
 
       string match {
-        case regex(int) => Some(Foo(int.toInt))
+        case regex(int) => Option(Foo(int.toInt))
         case _ => None
       }
     }

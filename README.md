@@ -62,7 +62,7 @@ implicit object FooDeserializer extends Deserializable[Foo] {
     val regex = "Foo\\((\\d+)\\)".r
 
     string match {
-      case regex(int) => Some(Foo(int.toInt))
+      case regex(int) => Option(Foo(int.toInt))
       case _ => None
     }
   }
@@ -76,7 +76,7 @@ deserialize[Foo](fooBytes) // returns a value of type `Option[Foo]`
 
 assert(
   // `Foo` survives a round trip
-  deserialize[Foo](serialize(fooVal)) == Some(fooVal)
+  deserialize[Foo](serialize(fooVal)) == Option(fooVal)
 )
 assert(
   // serialized `Foo` survives a round trip
@@ -125,7 +125,7 @@ extends AvroDeserializable[Rec](Rec.getClassSchema)
 
 assert(
   // Avro records survive a round trip
-  deserialize[R](avroRecordSerializedByUs) == Some(avroRecord)
+  deserialize[R](avroRecordSerializedByUs) == Option(avroRecord)
 )
 
 val avroRecordSerializedBySomeoneElse: Array[Byte] = ???

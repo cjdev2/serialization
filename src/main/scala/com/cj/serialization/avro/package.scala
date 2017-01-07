@@ -61,7 +61,7 @@ package object avro {
       scala.util.Try(reader.read(null, decoder)).toOption
         .flatMap({
           case null => None
-          case t => Some(t)
+          case t => Option(t)
         })
     }
   }
@@ -73,7 +73,7 @@ package object avro {
     * {{{
     *   val foo = makeAvroDeserializer[Bar](Bar.getClassSchema)
     * }}}
-    * the call `foo` on your bytes.
+    * then call `foo` on your bytes.
     *
     * @param schema The [[Schema]] of `T`, typically `T.getClassSchema`
     * @tparam T A child class of [[SpecificRecord]]
@@ -128,7 +128,7 @@ package object avro {
     bytes => {
       val avroRec: U = avroDeserializer(bytes)
       if (avroRec == null) None
-      else Some(f(avroRec))
+      else Option(f(avroRec))
     }
   }
 

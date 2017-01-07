@@ -1,28 +1,28 @@
 package com.cj.serialization
 
+import argonaut.{CodecJson, DecodeJson, EncodeJson, Json}
+
 package object json {
 
-  import argonaut._
-  import Argonaut._
-
   trait JsonSerializer[T] extends Serializable[T] with Deserializable[T] {
+
     def toJson(t: T): Json
     def fromJson(json: Json): Option[T]
 
-    final def toJsonString(t: T): String = this.toJson(t).nospaces
-    final def toPrettyJsonString(t: T): String = this.toJson(t).spaces2
+    final def toJsonString(t: T): String = toJson(t).nospaces
+    final def toPrettyJsonString(t: T): String = toJson(t).spaces2
 
     final def fromJsonString(string: String): Option[T] = for {
-      json <- Parse.parse(string).fold(_ => None, json => Some(json))
-      t <- this.fromJson(json)
+      json <- argonaut.Parse.parse(string).fold(_ => None, json => Option(json))
+      t <- fromJson(json)
     } yield t
 
     final def serialize(t: T): Array[Byte] =
-      implicitly[Serializable[String]].serialize(this.toJsonString(t))
+      implicitly[Serializable[String]].serialize(toJsonString(t))
 
     final def deserialize(bytes: Array[Byte]): Option[T] = for {
       string <- implicitly[Deserializable[String]].deserialize(bytes)
-      t <- this.fromJsonString(string)
+      t <- fromJsonString(string)
     } yield t
   }
 
@@ -43,19 +43,19 @@ package object json {
 
   implicit object JsonSerializerJson extends JsonSerializer[Json] {
     def toJson(t: Json): Json = t
-    def fromJson(json: Json): Option[Json] = Some(json)
+    def fromJson(json: Json): Option[Json] = Option(json)
   }
 
   class JsonSerializerFromCodec[T](codec: CodecJson[T])
     extends JsonSerializer[T]
-    with EncodeJson[T]
-    with DecodeJson[T] {
+      with EncodeJson[T]
+      with DecodeJson[T] {
 
-    def toJson(t: T): Json = t.asJson(codec)
+    def toJson(t: T): Json = argonaut.Argonaut.ToJsonIdentity(t).asJson(codec)
     def fromJson(json: Json): Option[T] = json.as[T](codec).toOption
 
-    def encode(a: T): Json = a.asJson(codec)
-    def decode(c: HCursor): DecodeResult[T] = c.as[T](codec)
+    def encode(a: T): Json = argonaut.Argonaut.ToJsonIdentity(a).asJson(codec)
+    def decode(c: argonaut.HCursor): argonaut.DecodeResult[T] = c.as[T](codec)
     def getCodec: CodecJson[T] = codec
   }
 

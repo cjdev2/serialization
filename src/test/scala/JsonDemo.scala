@@ -13,7 +13,7 @@ object JsonDemo extends App {
   import com.cj.serialization._
   import com.cj.serialization.json._
 
-  import argonaut._, Argonaut._
+  import argonaut.{Argonaut, CodecJson, DecodeJson, EncodeJson, Json}
   import scalaz._, Scalaz._ // Not required, but you'll be glad you did...
 
   // TODO: Case Classes and Automatic Codec Generation
@@ -31,7 +31,7 @@ object JsonDemo extends App {
     // We need to tell argonaut how to convert between `Person` and `Json`.
     // Argonaut does the hard parts: it just needs us to give it a few hints.
     // We use `casecodec4` because `Person` has four fields.
-    casecodec4(Person.apply, Person.unapply)(
+    Argonaut.casecodec4(Person.apply, Person.unapply)(
       "prénom", "âge", "des_choses", "mère"
     ) // Name the fields whatever you'd like.
   )
@@ -187,10 +187,10 @@ object JsonDemo extends App {
   // - missing or null strings are not implicitly coerced to empty strings.
   // Make sure your case class reflects your expectations about your data.
   val noThingsPerson: String =
-    """{
-      |  "prénom" : "No-things",
-      |  "âge" : 5
-      |}""".stripMargin
+  """{
+    |  "prénom" : "No-things",
+    |  "âge" : 5
+    |}""".stripMargin
   assert(
     // "des_choses" is missing, so fail.
     fromJsonString[Person](noThingsPerson).isEmpty
@@ -209,12 +209,12 @@ object JsonDemo extends App {
   // How does the library (argonaut, really)
   // handle JSON objects with extra fields?
   val augmentedPerson: String =
-    """{
-      |  "prénom" : "Augie",
-      |  "âge" : 18,
-      |  "des_choses" : [],
-      |  "mains" : 4
-      |}""".stripMargin // Augie is an Emacs user, obv.
+  """{
+    |  "prénom" : "Augie",
+    |  "âge" : 18,
+    |  "des_choses" : [],
+    |  "mains" : 4
+    |}""".stripMargin // Augie is an Emacs user, obv.
   assert(
     // Extra fields in JSON strings are silently ignored. (Quack, quack!)
     fromJsonString[Person](augmentedPerson).contains(
@@ -248,8 +248,8 @@ object JsonDemo extends App {
       _.toMap.get("int").flatMap(_.number).flatMap(_.toInt)
     )
     (optInt, optBool) match {
-      case (Some(n), None) => Some(SInt(n))
-      case (None, Some(p)) => Some(SBool(p))
+      case (Some(n), None) => Option(SInt(n))
+      case (None, Some(p)) => Option(SBool(p))
       case _ => None
     }
   }
@@ -258,7 +258,7 @@ object JsonDemo extends App {
   // I usually prefer to inline to converters so as not to have them
   // in global scope (they are redundant with `fromJson` and `toJson`).
   implicit object ADTSumJsonSerializer
-  extends JsonSerializerFromConverters[ADTSum](adtSumToJson, adtSumFromJson)
+    extends JsonSerializerFromConverters[ADTSum](adtSumToJson, adtSumFromJson)
 
   // And everything works as expected.
   assert(
@@ -290,7 +290,7 @@ object JsonDemo extends App {
     // expect it to generate a codec for `Pair`, so we ask
     // it to generate those prerequisite codecs first.
     implicit def keyCodec =
-    Argonaut.casecodec1(Key.apply, Key.unapply)("get")
+      Argonaut.casecodec1(Key.apply, Key.unapply)("get")
     implicit def valueCodec =
       Argonaut.casecodec1(Value.apply, Value.unapply)("get")
     Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
@@ -308,11 +308,11 @@ object JsonDemo extends App {
 
   // Build on top of what we've already built.
   implicit object ClassyMapSerializer
-  extends JsonSerializerFromCodec[ClassyMap]({
-    // Argonaut already knows how to encode/decode
-    // `Pair`s, so no need to provide evidence here.
-    Argonaut.casecodec1(ClassyMap.apply, ClassyMap.unapply)("pairs")
-  })
+    extends JsonSerializerFromCodec[ClassyMap]({
+      // Argonaut already knows how to encode/decode
+      // `Pair`s, so no need to provide evidence here.
+      Argonaut.casecodec1(ClassyMap.apply, ClassyMap.unapply)("pairs")
+    })
 
   val map = ClassyMap(List(pair))
 
@@ -347,7 +347,7 @@ object JsonDemo extends App {
   // like to have access to two or more alternate ways to serialize the same
   // class coexisting in scope.
   object TerseClassyMapSerializer
-  extends JsonSerializerFromConverters[ClassyMap](
+    extends JsonSerializerFromConverters[ClassyMap](
       // Provide a `ClassyMap => Json`.
       classyMap => Json.jArray(
         classyMap.pairs.map(pair => Json(
@@ -407,25 +407,24 @@ object JsonDemo extends App {
                                      implicit
                                      encoderT : EncodeJson[T],
                                      decoderT : DecodeJson[T]
-                                   ): JsonSerializer[Wrapper[T]]
-  = new JsonSerializerFromCodec[Wrapper[T]]({
+                                   ): JsonSerializer[Wrapper[T]] =
+    new JsonSerializerFromCodec[Wrapper[T]]({
 
     // The `casecodecN` family of functions each have
     // N+1 type parameters and three argument groups.
     //
-    //     casecodec1[
-    //       A,  // A type we assume we can encode/decode to JSON.
-    //       X   // The type we'd like to be able to encode/decode.
-    //     ](
-    //       con: A => X,         // A constructor for `X`.
-    //       ext: X => Option[A]  // An extractor for `X`.
+    //     // `A` is a type we assume we can encode/decode to JSON.
+    //     // `X` is the type we'd like to be able to encode/decode.
+    //     casecodec1[A, X](
+    //       con: A => X,          // A constructor for `X`.
+    //       ext: X => Option[A]   // An extractor for `X`.
     //     )(
-    //       prop: String         // Name we'd like for our JSON property.
+    //       prop: String          // Name we'd like for our JSON property.
     //     )(
     //       implicit
-    //       encA: EncodeJson[A], // A type enforcing half of our precondition.
-    //       decA: DecodeJson[A]  // The other half of our precondition.
-    //     ): CodecJson[X]        // Extends `EncodeJson[X]`, `DecodeJson[X]`.
+    //       encA: EncodeJson[A],  // A type enforcing half of our precondition.
+    //       decA: DecodeJson[A]   // The other half of our precondition.
+    //     ): CodecJson[X]         // Extends `EncodeJson[X]`, `DecodeJson[X]`.
     //
     // The return type of `casecodec1` allows us to encode/decode values of `X`.
     // That the last argument group is implicit means that scalac will attempt
@@ -435,7 +434,7 @@ object JsonDemo extends App {
     // one. We can at any time override the implicits by explicitly providing
     // `encA` and `decA` (as we do below).
 
-    casecodec1[T, Wrapper[T]](
+    Argonaut.casecodec1[T, Wrapper[T]](
       Wrapper.apply[T], Wrapper.unapply[T]
     )("runWrapper")(encoderT, decoderT)
   })
