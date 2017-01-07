@@ -1,31 +1,39 @@
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import com.twitter.scrooge.ThriftStructCodec
-import org.apache.thrift.protocol.{TBinaryProtocol, TProtocolFactory}
+
+import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.TIOStreamTransport
 
 object ThriftDemo extends App {
 
-  import local.test.serialization.thrift.scala.TestRecord // Thrift-generated class
-
-  val protocolFactory: TProtocolFactory = new TBinaryProtocol.Factory()
+  // thrift-generated class
+  import local.test.serialization.thrift.scala.TestRecord
 
   def serialize(t: TestRecord): Array[Byte] = {
     val output = new ByteArrayOutputStream
-    t._codec.encode(t, protocolFactory.getProtocol(new TIOStreamTransport(output)))
+    t._codec.encode(
+      t, new TBinaryProtocol.Factory().getProtocol(
+        new TIOStreamTransport(output)
+      )
+    )
     output.toByteArray
   }
 
-  def fromBytes(codec: ThriftStructCodec[TestRecord], bytes: Array[Byte]): TestRecord = {
-    codec.decode(protocolFactory.getProtocol(
-      new TIOStreamTransport(new ByteArrayInputStream(bytes))
-    ))
-  }
-
   def deserialize(bytes: Array[Byte]): Option[TestRecord] = {
-    scala.util.Try(fromBytes(TestRecord("",0)._codec, bytes)).toOption
+    scala.util.Try(
+      TestRecord("",0)._codec.decode(
+        new TBinaryProtocol.Factory().getProtocol(
+          new TIOStreamTransport(new ByteArrayInputStream(bytes))
+        )
+      )
+    ).toOption.flatMap(Option.apply)
   }
 
   val record: TestRecord = TestRecord("foó", 123l)
 
-  println(deserialize(serialize(record)))
+  assert({
+    println(record)
+    println(serialize(record))
+    println(deserialize(serialize(record)))
+    deserialize(serialize(record)).get == record
+  })
 }
