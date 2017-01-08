@@ -20,7 +20,7 @@ object ThriftDemo extends App {
 
   def deserialize(bytes: Array[Byte]): Option[TestRecord] = {
     scala.util.Try(
-      TestRecord("",0)._codec.decode(
+      TestRecord.decode(
         new TBinaryProtocol.Factory().getProtocol(
           new TIOStreamTransport(new ByteArrayInputStream(bytes))
         )
@@ -32,7 +32,7 @@ object ThriftDemo extends App {
 
   assert({
     println(record)
-    println(serialize(record))
+    println(serialize(record).mkString(","))
     println(deserialize(serialize(record)))
     deserialize(serialize(record)).get == record
   })
