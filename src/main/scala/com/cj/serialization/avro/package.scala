@@ -58,11 +58,8 @@ package object avro {
     def deserialize(bytes: Array[Byte]): Option[T] = {
       val decoder = factory.binaryDecoder(bytes, null)
 
-      scala.util.Try(reader.read(null, decoder)).toOption
-        .flatMap({
-          case null => None
-          case t => Option(t)
-        })
+      scala.util.Try(reader.read(null, decoder))
+        .toOption.flatMap(Option.apply)
     }
   }
 
