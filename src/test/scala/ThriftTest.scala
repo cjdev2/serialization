@@ -12,7 +12,7 @@ class ThriftTest extends FlatSpec with Matchers {
 
   behavior of "ThriftSerializer"
 
-  ignore should "be accessible for TestRecord" in {
+  it should "be accessible for TestRecord" in {
     // given: a `TestRecord`
     val record = TestRecord("", 0l)
 
@@ -26,41 +26,41 @@ class ThriftTest extends FlatSpec with Matchers {
 
   behavior of "ThriftDeserializer"
 
-  ignore should "be able to create a `Deserializable[TestRecord]`" in {
+  it should "be able to create a `Deserializable[TestRecord]`" in {
     // given: a serialized `TestRecord`
     val bytes = new ThriftSerializer[TestRecord].serialize(TestRecord("", 0l))
 
     // when: we provide a `ThriftDeserializer[TestRecord]`
     implicit object DeserializableTestRecord
-      extends ThriftDeserializer[TestRecord]
+      extends ThriftDeserializer[TestRecord](TestRecord)
 
     // then: we should be able to deserialize `TestRecord`s
-    deserialize(bytes)
+    deserialize[TestRecord](bytes)
   }
 
-  ignore should "be reversible" in {
+  it should "be reversible" in {
     // given: a `TestRecord` and a `Thrift(De)Serializer[TestRecord]`
     val record = TestRecord("", 0l)
     implicit object SerializableTestRecord
       extends ThriftSerializer[TestRecord]
     implicit object DeserializableTestRecord
-      extends ThriftDeserializer[TestRecord]
+      extends ThriftDeserializer[TestRecord](TestRecord)
 
     // when: we deserialize a serialized record
-    val result = deserialize(serialize(record))
+    val result: Option[TestRecord] = deserialize(serialize(record))
 
     // then: the record should survive the round trip
-    result.get should be(record)
+    result.contains(record) should be(true)
   }
 
-  ignore should "return `None` when given bad input" in {
+  it should "return `None` when given bad input" in {
     // given: some bad bytes
     val badBytes = "baaad".toCharArray.map(_.toByte)
     implicit object DeserializableTestRecord
-      extends ThriftDeserializer[TestRecord]
+      extends ThriftDeserializer[TestRecord](TestRecord)
 
     // when: we serialize them
-    val result = deserialize(badBytes)
+    val result: Option[TestRecord] = deserialize(badBytes)
 
     // then: the result should be `None`
     result should be(None)
