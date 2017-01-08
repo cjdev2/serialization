@@ -13,7 +13,7 @@ object JsonDemo extends App {
   import com.cj.serialization._
   import com.cj.serialization.json._
 
-  import argonaut.{Argonaut, CodecJson, DecodeJson, EncodeJson, Json}
+  import argonaut.{Argonaut, DecodeJson, EncodeJson, Json}
   import scalaz._, Scalaz._ // Not required, but you'll be glad you did...
 
   // TODO: Case Classes and Automatic Codec Generation
