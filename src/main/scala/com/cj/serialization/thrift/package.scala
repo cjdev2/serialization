@@ -30,7 +30,8 @@ package object thrift {
         codec.decode(
           protocolFactory.getProtocol(
             new TIOStreamTransport(
-              new ByteArrayInputStream(bytes))
+              new ByteArrayInputStream(bytes)
+            )
           )
         )
       }).toOption.flatMap(Option.apply)
