@@ -128,10 +128,10 @@ class AvroTest extends FlatSpec with Matchers {
     val concurrentResult = serializedRecords.par.map(deserialize[TestRecord])
 
     // then: the results should be the same
-    val z =
-      strictResult.zip(concurrentResult)
-        .map({ case (r1, r2) => r1 == r2 }).reduce(_ && _)
-    z should be(true)
+    strictResult
+      .zip(concurrentResult)
+      .map({ case (r1, r2) => r1 == r2 })
+      .reduce(_ && _) should be(true)
   }
 
   it should "read input created by other Avro clients" in {
@@ -152,6 +152,34 @@ class AvroTest extends FlatSpec with Matchers {
 
     // then
     results.map(_.get) should be(records)
+  }
+
+  it should "be usable explicitly rather than implicitly" in {
+    // given: some serialized records and an implicit deserializer
+    val records = for {
+      s <- 'a'.to('z').map(_.toString)
+      n <- 0l.to(9l)
+    } yield new TestRecord(s, n)
+    val serializedRecords = records.map(
+      local.test.serialization.avro.MinimalAvroSerializer.serialize
+    )
+    implicit object ImplicitDeserializer
+    extends AvroDeserializable[TestRecord](TestRecord.getClassSchema)
+
+    // when: we create a deserializer
+    val deserializer: Array[Byte] => Option[TestRecord] = {
+      val foo = new AvroDeserializable[TestRecord](TestRecord.getClassSchema)
+      foo.deserialize
+    }
+
+    val implicitResult = serializedRecords.map(deserialize[TestRecord])
+    val explicitResult = serializedRecords.par.map(deserializer)
+
+    // then: our serializer should do all the things
+    explicitResult
+      .zip(implicitResult)
+      .map({ case (r1, r2) => r1 == r2 })
+      .reduce(_ && _) should be(true)
   }
 
   behavior of "makeAvroDeserializer"

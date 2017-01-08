@@ -63,6 +63,8 @@ package object avro {
     }
   }
 
+  /* Legacy API */
+
   /**
     * An alternative interface for deserializing Avro objects.
     *
@@ -77,15 +79,12 @@ package object avro {
     * @return A function that contains in its closure a single, reusable
     *         instance of [[AvroDeserializable]]`[T]` for minimal overhead
     */
+  @deprecated("`AvroDeserializer` may be used explicitly.")
   def makeAvroDeserializer[T >: Null <: SpecificRecord](schema: Schema)
   : Array[Byte] => Option[T] = {
 
-    object DeserializableRecord extends AvroDeserializable[T](schema)
-
-    bytes => DeserializableRecord.deserialize(bytes)
+    new AvroDeserializable[T](schema).deserialize
   }
-
-  /* Legacy API */
 
   @deprecated("`serialize` from `com.cj.serialization` makes this type unnecessary.")
   type RecordSerializer[-T] = T => Array[Byte]
