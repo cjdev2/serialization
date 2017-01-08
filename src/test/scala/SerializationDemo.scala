@@ -22,11 +22,21 @@ object SerializationDemo extends App {
   }
 
   val fooVal: Foo = Foo(1234)
-  serialize(fooVal) // returns a value of type `Array[Byte]`
+  val fooBytes: Array[Byte] = "Foo(5678)".getBytes
+  val incoherentBytes: Array[Byte] = "bytes".getBytes
 
-  val fooBytes: Array[Byte] = "Person(5678)".getBytes
-  deserialize[Foo](fooBytes) // returns a value of type `Option[Foo]`
-
+  assert(
+    // `fooVal' serializes to `"Foo(1234)".getBytes`
+    serialize(fooVal) sameElements "Foo(1234)".getBytes
+  )
+  assert(
+    // 'fooBytes' deserializes to `Some(Foo(5678)`
+    deserialize[Foo](fooBytes).contains(Foo(5678))
+  )
+  assert(
+    // `deserialize` fails gracefully on incoherent input
+    deserialize[Foo](incoherentBytes).isEmpty
+  )
   assert(
     // `fooVal` survives serialization followed by deserialization
     deserialize[Foo](serialize(fooVal)).contains(fooVal)

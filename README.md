@@ -69,19 +69,20 @@ implicit object FooDeserializer extends Deserializable[Foo] {
 }
 
 val fooVal: Foo = Foo(1234)
-serialize(fooVal) // returns a value of type `Array[Byte]`
-
 val fooBytes: Array[Byte] = "Foo(5678)".getBytes
-deserialize[Foo](fooBytes) // returns a value of type `Option[Foo]`
+val incoherentBytes: Array[Byte] = "bytes".getBytes
 
 assert(
-  // `Foo` survives a round trip
-  deserialize[Foo](serialize(fooVal)) == Option(fooVal)
+  // `fooVal' serializes to `"Foo(1234)".getBytes`
+  serialize(fooVal) sameElements "Foo(1234)".getBytes
 )
 assert(
-  // serialized `Foo` survives a round trip
-  deserialize[Foo](fooBytes).map(serialize[Foo]).flatMap(deserialize[Foo])
-    == deserialize[Foo](fooBytes)
+  // 'fooBytes' deserializes to `Some(Foo(5678)`
+  deserialize[Foo](fooBytes).contains(Foo(5678))
+)
+assert(
+  // `deserialize` fails gracefully on incoherent input
+  deserialize[Foo](incoherentBytes).isEmpty
 )
 ```
 
