@@ -2,7 +2,9 @@ object AvroDemo extends App {
 
   import com.cj.serialization._
   import com.cj.serialization.avro._
-  import local.test.serialization.avro.TestRecord // Avro-generate class
+
+  // Avro-generate class
+  import local.test.serialization.avro.TestRecord
 
   val record: TestRecord = new TestRecord("foó", 123l)
 
