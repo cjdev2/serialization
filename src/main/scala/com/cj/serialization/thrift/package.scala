@@ -1,34 +1,38 @@
 package com.cj.serialization
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-
 import com.twitter.scrooge.{HasThriftStructCodec3, ThriftStruct, ThriftStructCodec3}
+import java.io.ByteArrayInputStream
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.{TIOStreamTransport, TMemoryBuffer}
 
 package object thrift {
 
-  class ThriftSerializer[T <: HasThriftStructCodec3[T] with ThriftStruct] extends Serializable[T] {
-    val protocolFactory = new TBinaryProtocol.Factory
+  class ThriftSerializer[T <: ThriftStruct with HasThriftStructCodec3[T]]
+    extends Serializable[T] {
+
+    private val protocolFactory = new TBinaryProtocol.Factory
 
     def serialize(t: T): Array[Byte] = {
-      val buf = new TMemoryBuffer(32)
-      val oprot = protocolFactory.getProtocol(buf)
-      t._codec.encode(t, oprot)
-      buf.getArray
+      val output = new TMemoryBuffer(32)
+      t._codec.encode(t, protocolFactory.getProtocol(output))
+      output.getArray
     }
   }
 
-  class ThriftDeserializer
-  [T <: HasThriftStructCodec3[T] with ThriftStruct](codec : ThriftStructCodec3[T])
-    extends Deserializable[T] {
-    val protocolFactory = new TBinaryProtocol.Factory
+  class ThriftDeserializer[T <: ThriftStruct with HasThriftStructCodec3[T]](
+    codec : ThriftStructCodec3[T]
+  ) extends Deserializable[T] {
+
+    private val protocolFactory = new TBinaryProtocol.Factory
 
     def deserialize(bytes: Array[Byte]): Option[T] = {
       scala.util.Try({
-        val buf = new ByteArrayInputStream(bytes)
-        val oprot = protocolFactory.getProtocol(new TIOStreamTransport(buf))
-        codec.decode(oprot)
+        codec.decode(
+          protocolFactory.getProtocol(
+            new TIOStreamTransport(
+              new ByteArrayInputStream(bytes))
+          )
+        )
       }).toOption.flatMap(Option.apply)
     }
   }
