@@ -16,9 +16,7 @@ class ThriftTest extends FlatSpec with Matchers {
     // given: a `TestRecord`
     val record = TestRecord("", 0l)
 
-    // when: we provide a `ThriftDeserializer[TestRecord]`
-    implicit object SerializableTestRecord
-      extends ThriftSerializer[TestRecord]
+    // when: the software is written
 
     // then: we should make it to the end
     serialize(record)
@@ -28,7 +26,7 @@ class ThriftTest extends FlatSpec with Matchers {
 
   it should "be able to create a `Deserializable[TestRecord]`" in {
     // given: a serialized `TestRecord`
-    val bytes = new ThriftSerializer[TestRecord].serialize(TestRecord("", 0l))
+    val bytes = serialize(TestRecord("", 0l))
 
     // when: we provide a `ThriftDeserializer[TestRecord]`
     implicit object DeserializableTestRecord
@@ -39,10 +37,8 @@ class ThriftTest extends FlatSpec with Matchers {
   }
 
   it should "be reversible" in {
-    // given: a `TestRecord` and a `Thrift(De)Serializer[TestRecord]`
+    // given: a `TestRecord` and a `ThriftDeserializer[TestRecord]`
     val record = TestRecord("", 0l)
-    implicit object SerializableTestRecord
-      extends ThriftSerializer[TestRecord]
     implicit object DeserializableTestRecord
       extends ThriftDeserializer[TestRecord](TestRecord)
 
@@ -50,7 +46,7 @@ class ThriftTest extends FlatSpec with Matchers {
     val result: Option[TestRecord] = deserialize(serialize(record))
 
     // then: the record should survive the round trip
-    result.contains(record) should be(true)
+    result should be(Some(record))
   }
 
   it should "return `None` when given bad input" in {

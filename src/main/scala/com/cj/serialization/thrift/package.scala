@@ -1,39 +1,35 @@
 package com.cj.serialization
 
-import com.twitter.scrooge.{HasThriftStructCodec3, ThriftStruct, ThriftStructCodec3}
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.thrift.transport.TIOStreamTransport
+import com.twitter.scrooge.{ThriftStruct, ThriftStructCodec3}
+import org.apache.thrift.protocol.{TBinaryProtocol, TProtocol}
+import org.apache.thrift.transport.{TMemoryBuffer, TTransport}
 
 package object thrift {
 
-  class ThriftSerializer[T <: ThriftStruct with HasThriftStructCodec3[T]]
-    extends Serializable[T] {
+  private val getProtocol: TTransport => TProtocol = {
+    val factory = new TBinaryProtocol.Factory
+    factory.getProtocol
+  }
 
-    private val protocolFactory = new TBinaryProtocol.Factory
+  implicit object SerializableThriftStruct extends Serializable[ThriftStruct] {
 
-    def serialize(t: T): Array[Byte] = {
-      val baos = new ByteArrayOutputStream()
-      t._codec.encode(t, protocolFactory.getProtocol(new TIOStreamTransport(baos)))
-      baos.toByteArray
+    def serialize(t: ThriftStruct): Array[Byte] = {
+      val output = new TMemoryBuffer(32)
+      t.write(getProtocol(output))
+      output.getArray
     }
   }
 
-  class ThriftDeserializer[T <: ThriftStruct with HasThriftStructCodec3[T]](
-    codec : ThriftStructCodec3[T]
-  ) extends Deserializable[T] {
-
-    private val protocolFactory = new TBinaryProtocol.Factory
+  class ThriftDeserializer[T <: ThriftStruct](codec : ThriftStructCodec3[T])
+    extends Deserializable[T] {
 
     def deserialize(bytes: Array[Byte]): Option[T] = {
       scala.util.Try({
-        codec.decode(
-          protocolFactory.getProtocol(
-            new TIOStreamTransport(
-              new ByteArrayInputStream(bytes)
-            )
-          )
-        )
+        codec.decode({
+          val output = new TMemoryBuffer(32)
+          output.write(bytes)
+          getProtocol(output)
+        })
       }).toOption.flatMap(Option.apply)
     }
   }
