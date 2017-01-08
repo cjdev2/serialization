@@ -33,7 +33,7 @@ object JsonDemo extends App {
     // We use `casecodec4` because `Person` has four fields.
     Argonaut.casecodec4(Person.apply, Person.unapply)(
       "prénom", "âge", "des_choses", "mère"
-    ) // Name the fields whatever you'd like.
+    ) // Name the properties whatever you'd like.
   )
 
   // We now have access to
@@ -67,28 +67,39 @@ object JsonDemo extends App {
   // TODO: Basic Usage
 
   // Create a `Person` as you normally would.
-  val person1 = Person("Tim Drake", 19, List("Bo"), Some("Janet Drake"))
+  val tim = Person("Tim Drake", 19, List("Bo"), Some("Janet Drake"))
+  assert(
+    toPrettyJsonString(tim) ==
+      """{
+        |  "prénom" : "Tim Drake",
+        |  "âge" : 19,
+        |  "des_choses" : [
+        |    "Bo"
+        |  ],
+        |  "mère" : "Janet Drake"
+        |}""".stripMargin
+  )
 
   assert(
     // Our `Person` survives `Json`-ification.
-    fromJson[Person](toJson(person1)).contains(person1)
+    fromJson[Person](toJson(tim)).contains(tim)
   )
   assert(
     // Our `Person` survives Stringification.
-    fromJsonString[Person](toJsonString(person1)).contains(person1)
+    fromJsonString[Person](toJsonString(tim)).contains(tim)
   )
   assert(
     // Our `Person` survives pretty stringification.
-    fromJsonString[Person](toPrettyJsonString(person1)).contains(person1)
+    fromJsonString[Person](toPrettyJsonString(tim)).contains(tim)
   )
   assert(
     // Our `Person` survives serialization/deserialization.
-    deserialize[Person](serialize(person1)).contains(person1)
+    deserialize[Person](serialize(tim)).contains(tim)
   )
 
   // It's easy to create `Json` values in native Scala (though
   // you often won't need to do any `Json` manipulation like this).
-  val person2: Json = Json(
+  val batman: Json = Json(
     "prénom" -> Json.jString("Batman"),
     "âge" -> Json.jNumber(38),
     "des_choses" -> Json.array(
@@ -101,20 +112,20 @@ object JsonDemo extends App {
 
   assert(
     // `Json` can be converted into `Person`.
-    fromJson[Person](person2).contains(
+    fromJson[Person](batman).contains(
       Person("Batman", 38, List("Batarang", "Batmobile"), None)
     )
   )
   assert(
     // `Json` survives `Person`-ification.
-    fromJson[Person](person2)
+    fromJson[Person](batman)
       .map(toJson[Person])
       .flatMap(fromJson[Person])
-      == fromJson[Person](person2)
+      == fromJson[Person](batman)
   )
 
   // What kind of JSON library would be complete without parsing JSON strings?
-  val person3: String =
+  val bruce: String =
     """{
       |  "prénom" : "Bruce Wayne",
       |  "âge" : 38,
@@ -127,13 +138,13 @@ object JsonDemo extends App {
 
   assert(
     // A JSON string can be parsed into a `Person`.
-    fromJsonString[Person](person3).contains(
+    fromJsonString[Person](bruce).contains(
       Person("Bruce Wayne", 38, List("Money", "Alfred"), Some("Martha Wayne"))
     )
   )
   assert({
     // A JSON string can be parsed into a native `Json` value.
-    fromJsonString[Json](person3).contains(Json(
+    fromJsonString[Json](bruce).contains(Json(
       "prénom" -> Json.jString("Bruce Wayne"),
       "âge" -> Json.jNumber(38),
       "des_choses" -> Json.array(
@@ -145,14 +156,14 @@ object JsonDemo extends App {
   })
   assert(
     // The `serialize` and `deserialize` methods for `String` still work.
-    deserialize[String](serialize(person3)).contains(person3)
+    deserialize[String](serialize(bruce)).contains(bruce)
   )
   assert(
     // Our JSON string survives a round trip.
-    fromJsonString[Person](person3)
+    fromJsonString[Person](bruce)
       .map(toJsonString[Person])
       .flatMap(fromJsonString[Person])
-      == fromJsonString[Person](person3)
+      == fromJsonString[Person](bruce)
   )
 
   // TODO: Validation Guarantees
@@ -182,9 +193,9 @@ object JsonDemo extends App {
   )
 
   // Data shape requirements are rather strict:
-  // - nullable fields must be `Optional` in your case class,
-  // - missing or null arrays are not implicitly coerced to empty lists, and
-  // - missing or null strings are not implicitly coerced to empty strings.
+  // - absent or null properties must be `Optional` in your case class,
+  // - absent or null JSON arrays are not read as empty lists, and
+  // - absent or null strings are not read as empty strings.
   // Make sure your case class reflects your expectations about your data.
   val noThingsPerson: String =
   """{
@@ -446,7 +457,7 @@ object JsonDemo extends App {
     deserialize[Wrapper[Int]](serialize(Wrapper(5))).get.runWrapper == 5
   )
   assert(
-    toPrettyJsonString(Wrapper(person1)) ==
+    toPrettyJsonString(Wrapper(tim)) ==
       """{
         |  "runWrapper" : {
         |    "prénom" : "Tim Drake",
