@@ -10,6 +10,8 @@ package object thrift {
     * This instance of [[Serializable]]`[ThriftStruct]` is sufficient
     * for serializing any child of `ThriftStruct`, i.e. serialization
     * of Scrooge-generated classes should Just Work™.
+    *
+    * Usage:
     * {{{
     *   import com.cj.serialization._
     *   import com.cj.serialization.thrift._
@@ -30,6 +32,8 @@ package object thrift {
 
   /**
     * Create a [[Deserializable]]`[T]` for a scrooge-generated class `T`.
+    *
+    * Usage:
     * {{{
     *   import com.cj.serialization._
     *   import com.cj.serialization.thrift._
