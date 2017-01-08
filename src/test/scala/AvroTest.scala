@@ -161,11 +161,11 @@ class AvroTest extends FlatSpec with Matchers {
     val record = new TestRecord("", 0l)
 
     // when: we invoke `makeAvroDeserializer`
-    val deserializeTestRecord =
+    val testRecordDeserializer =
       makeAvroDeserializer[TestRecord](TestRecord.getClassSchema)
 
     // then: the resulting deserializer should behave as expected
-    deserializeTestRecord(serialize(record)).get should be(record)
+    testRecordDeserializer(serialize(record)).get should be(record)
   }
 
   /* Legacy API */
