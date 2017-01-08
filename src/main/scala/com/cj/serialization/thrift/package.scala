@@ -1,9 +1,9 @@
 package com.cj.serialization
 
 import com.twitter.scrooge.{HasThriftStructCodec3, ThriftStruct, ThriftStructCodec3}
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.thrift.transport.{TIOStreamTransport, TMemoryBuffer}
+import org.apache.thrift.transport.TIOStreamTransport
 
 package object thrift {
 
@@ -13,9 +13,9 @@ package object thrift {
     private val protocolFactory = new TBinaryProtocol.Factory
 
     def serialize(t: T): Array[Byte] = {
-      val output = new TMemoryBuffer(32)
-      t._codec.encode(t, protocolFactory.getProtocol(output))
-      output.getArray
+      val baos = new ByteArrayOutputStream()
+      t._codec.encode(t, protocolFactory.getProtocol(new TIOStreamTransport(baos)))
+      baos.toByteArray
     }
   }
 
