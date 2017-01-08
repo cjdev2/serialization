@@ -1,26 +1,51 @@
 package com.cj.serialization
 
-import com.twitter.scrooge.{ThriftStruct, ThriftStructCodec3}
-import org.apache.thrift.protocol.{TBinaryProtocol, TProtocol}
-import org.apache.thrift.transport.{TMemoryBuffer, TTransport}
+import com.twitter.scrooge.{ThriftStruct, ThriftStructCodec}
+import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.transport.TMemoryBuffer
 
 package object thrift {
 
-  private val getProtocol: TTransport => TProtocol = {
-    val factory = new TBinaryProtocol.Factory
-    factory.getProtocol
-  }
-
+  /**
+    * This instance of [[Serializable]]`[ThriftStruct]` is sufficient
+    * for serializing any child of `ThriftStruct`, i.e. serialization
+    * of Scrooge-generated classes should Just Work™.
+    * {{{
+    *   import com.cj.serialization._
+    *   import com.cj.serialization.thrift._
+    *   import your.awesome.thriftStruct.Awesome
+    *
+    *   val awesome: Awesome = ...
+    *   val bytes: Array[Byte] = serialize(awesome)
+    * }}}
+    */
   implicit object SerializableThriftStruct extends Serializable[ThriftStruct] {
 
     def serialize(t: ThriftStruct): Array[Byte] = {
       val output = new TMemoryBuffer(32)
-      t.write(getProtocol(output))
+      t.write(new TBinaryProtocol(output))
       output.getArray
     }
   }
 
-  class ThriftDeserializer[T <: ThriftStruct](codec : ThriftStructCodec3[T])
+  /**
+    * Create a [[Deserializable]]`[T]` for a scrooge-generated class `T`.
+    * {{{
+    *   import com.cj.serialization._
+    *   import com.cj.serialization.thrift._
+    *   import your.awesome.thriftStruct.Awesome
+    *
+    *   implicit object DeserializableAwesome
+    *     extends ThriftDeserializer[Awesome](Awesome)
+    *
+    *   val bytes: Array[Byte] = ...
+    *   val optAwesome: Option[Awesome] = deserialize(bytes)
+    * }}}
+    *
+    * @param codec The scrooge-generated codec for `T` (usually just `T`)
+    * @tparam T The scrooge-generated class you'd like to be able to deserialize
+    */
+  class ThriftDeserializer[T <: ThriftStruct](codec : ThriftStructCodec[T])
     extends Deserializable[T] {
 
     def deserialize(bytes: Array[Byte]): Option[T] = {
@@ -28,7 +53,7 @@ package object thrift {
         codec.decode({
           val output = new TMemoryBuffer(32)
           output.write(bytes)
-          getProtocol(output)
+          new TBinaryProtocol(output)
         })
       }).toOption.flatMap(Option.apply)
     }

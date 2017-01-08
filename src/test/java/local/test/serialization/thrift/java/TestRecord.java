@@ -117,10 +117,10 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
     Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
-    tmpMap.put(_Fields.FOO, new org.apache.thrift.meta_data.FieldMetaData("foo", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
-    tmpMap.put(_Fields.BAR, new org.apache.thrift.meta_data.FieldMetaData("bar", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
+    tmpMap.put(_Fields.FOO, new org.apache.thrift.meta_data.FieldMetaData("foo", org.apache.thrift.TFieldRequirementType.DEFAULT,
+            new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+    tmpMap.put(_Fields.BAR, new org.apache.thrift.meta_data.FieldMetaData("bar", org.apache.thrift.TFieldRequirementType.DEFAULT,
+            new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(TestRecord.class, metaDataMap);
   }
@@ -129,8 +129,8 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
   }
 
   public TestRecord(
-    String foo,
-    long bar)
+          String foo,
+          long bar)
   {
     this();
     this.foo = foo;
@@ -209,32 +209,32 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
 
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
-    case FOO:
-      if (value == null) {
-        unsetFoo();
-      } else {
-        setFoo((String)value);
-      }
-      break;
+      case FOO:
+        if (value == null) {
+          unsetFoo();
+        } else {
+          setFoo((String)value);
+        }
+        break;
 
-    case BAR:
-      if (value == null) {
-        unsetBar();
-      } else {
-        setBar((Long)value);
-      }
-      break;
+      case BAR:
+        if (value == null) {
+          unsetBar();
+        } else {
+          setBar((Long)value);
+        }
+        break;
 
     }
   }
 
   public Object getFieldValue(_Fields field) {
     switch (field) {
-    case FOO:
-      return getFoo();
+      case FOO:
+        return getFoo();
 
-    case BAR:
-      return getBar();
+      case BAR:
+        return getBar();
 
     }
     throw new IllegalStateException();
@@ -247,10 +247,10 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
     }
 
     switch (field) {
-    case FOO:
-      return isSetFoo();
-    case BAR:
-      return isSetBar();
+      case FOO:
+        return isSetFoo();
+      case BAR:
+        return isSetBar();
     }
     throw new IllegalStateException();
   }
@@ -406,7 +406,7 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
       while (true)
       {
         schemeField = iprot.readFieldBegin();
-        if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+        if (schemeField.type == org.apache.thrift.protocol.TType.STOP) {
           break;
         }
         switch (schemeField.id) {
@@ -414,7 +414,7 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
             if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
               struct.foo = iprot.readString();
               struct.setFooIsSet(true);
-            } else { 
+            } else {
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
@@ -422,7 +422,7 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
             if (schemeField.type == org.apache.thrift.protocol.TType.I64) {
               struct.bar = iprot.readI64();
               struct.setBarIsSet(true);
-            } else { 
+            } else {
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
@@ -498,4 +498,3 @@ public class TestRecord implements org.apache.thrift.TBase<TestRecord, TestRecor
   }
 
 }
-

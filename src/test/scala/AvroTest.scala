@@ -48,11 +48,10 @@ class AvroTest extends FlatSpec with Matchers {
     val strictResult = records.map(serialize[TestRecord])
     val concurrentResult = records.par.map(serialize[TestRecord])
 
-    // then: the results should be the same
-    val z =
-      strictResult.zip(concurrentResult)
-        .map({ case (z1, z2) => z1 sameElements z2 }).reduce(_ && _)
-    z should be (true)
+    strictResult
+      .zip(concurrentResult)
+      .map({ case (z1, z2) => z1 sameElements z2 })
+      .reduce(_ && _) should be (true)
   }
 
   it should "create output readable by other Avro clients" in {

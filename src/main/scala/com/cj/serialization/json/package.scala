@@ -4,6 +4,8 @@ import argonaut.{CodecJson, DecodeJson, EncodeJson, Json}
 
 package object json {
 
+  // TODO: Write the docs!
+
   trait JsonSerializer[T] extends Serializable[T] with Deserializable[T] {
 
     def toJson(t: T): Json
