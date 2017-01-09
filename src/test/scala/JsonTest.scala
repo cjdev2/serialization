@@ -1,6 +1,7 @@
 import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.prop.PropertyChecks
 
-class JsonTest extends FlatSpec with Matchers {
+class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   import argonaut.{Argonaut, Json}
   import com.cj.serialization._
@@ -233,6 +234,83 @@ class JsonTest extends FlatSpec with Matchers {
     bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Pair])
   }
 
+  it should "Just Work™ with Scala Lists" in {
+    // given: some JSON with some known shape
+    val input =
+      """
+      [
+        { "name": "Mark", "age": 191 },
+        { "name": "Fred", "age": 33, "greeting": "hey ho, lets go!" },
+        { "name": "Barney", "age": 35, "address": {
+          "street": "rock street", "number": 10, "post_code": 2039
+        }}
+      ]
+      """
+
+    // when: you make structs for the objects and make instances of
+    // JsonSerializerFromCodec for those structs
+    case class Address(
+                        street: String,
+                        number: Int,
+                        postcode: Int
+                      )
+
+    implicit object AddressS extends JsonSerializerFromCodec[Address](
+      argonaut.Argonaut.casecodec3(Address.apply, Address.unapply)(
+        "street", "number", "post_code"
+      )
+    )
+
+    case class Person(
+                       name: String,
+                       age: Int,
+                       address: Option[Address],
+                       greeting: Option[String]
+                     )
+
+    implicit object PersonS extends JsonSerializerFromCodec[Person](
+      argonaut.Argonaut.casecodec4(Person.apply, Person.unapply)(
+        "name", "age", "address", "greeting"
+      )
+    )
+
+    // then: you can deserialize and work with JSON arrays of those
+    // structs without creating another JsonSerializer specifically
+    // for JSON arrays
+    val people = fromJsonString[List[Person]](input).getOrElse(Nil)
+    val nice = people.map(person =>
+      person.copy(greeting = person.greeting.orElse(Some("Hello good sir!")))
+    )
+    val output = toPrettyJsonString(nice)
+    assert(
+      output ==
+        """[
+          |  {
+          |    "name" : "Mark",
+          |    "age" : 191,
+          |    "address" : null,
+          |    "greeting" : "Hello good sir!"
+          |  },
+          |  {
+          |    "name" : "Fred",
+          |    "age" : 33,
+          |    "address" : null,
+          |    "greeting" : "hey ho, lets go!"
+          |  },
+          |  {
+          |    "name" : "Barney",
+          |    "age" : 35,
+          |    "address" : {
+          |      "street" : "rock street",
+          |      "number" : 10,
+          |      "post_code" : 2039
+          |    },
+          |    "greeting" : "Hello good sir!"
+          |  }
+          |]""".stripMargin
+    )
+  }
+
   behavior of "JsonSerializerFromConverters"
 
   it should "satisfy its contract" in {
@@ -262,6 +340,49 @@ class JsonTest extends FlatSpec with Matchers {
     jsonTestCases.foreach(jsonRightPseudoInverseTestCase[Pair])
     stringTestCases.foreach(stringRightPseudoInverseTestCase[Pair])
     bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Pair])
+  }
+
+  // TODO: Make this a proper test.
+  "something" should "do some property checks" in {
+
+    implicit object PersonS extends JsonSerializerFromCodec[Person](
+      Argonaut.casecodec4(Person.apply, Person.unapply)(
+        "name", "age", "things", "mother"
+      )
+    )
+
+    forAll { (n: String, a: Int, ts: List[String], om: Option[String]) =>
+
+      val person = Person(n, a, ts, om)
+
+      deserialize[Person](serialize(person)) should be(Some(person))
+    }
+  }
+
+  // TODO: Make this a proper test.
+  "did we ever check if Json serialization" should "be concurrent?" in {
+
+    implicit object PersonS extends JsonSerializerFromCodec[Person](
+      Argonaut.casecodec4(Person.apply, Person.unapply)(
+        "name", "age", "things", "mother"
+      )
+    )
+
+    forAll { (ps: List[(String, Int, List[String], Option[String])]) =>
+
+      whenever (ps.nonEmpty) {
+
+        val people = ps.map(Person.tupled)
+
+        val strictResult = people.map(serialize[Person])
+        val concurrentResult = people.par.map(serialize[Person])
+
+        strictResult
+          .zip(concurrentResult)
+          .map({ case (z1, z2) => z1 sameElements z2 })
+          .reduce(_ && _) should be(true)
+      }
+    }
   }
 
   object TestTools {
