@@ -151,7 +151,7 @@ class ThriftTest extends FlatSpec with Matchers {
     )
   }
 
-  it should "be usable explicitly rather than implicitly" in {
+  it should "be declarable explicitly rather than implicitly" in {
     // given: some serialized records and an implicit deserializer
     val records = for {
       s <- 'a'.to('z').map(_.toString)
