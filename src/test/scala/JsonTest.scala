@@ -11,6 +11,10 @@ class JsonTest extends FlatSpec with Matchers {
     JsonDemo.main(args = Array[String]())
   }
 
+  "JsonDemoMinimal" should "not be out of date" in {
+    JsonDemoMinimal.main(args = Array[String]())
+  }
+
   behavior of "JsonSerializerJson"
 
   it should "serialize JSON constants correctly" in {
@@ -266,20 +270,20 @@ class JsonTest extends FlatSpec with Matchers {
     case class Value(get: String)
     case class Pair(key: Key, value: Value)
 
-    val pair = Pair(Key(5),Value("foo"))
+    val pair: Pair = Pair(Key(5),Value("foo"))
 
-    val jsonPair1 = Json(
+    val jsonPair1: Json = Json(
       "key" -> Json("get" -> Json.jNumber(5)),
       "value" -> Json("get" -> Json.jString("foo"))
     )
 
-    val stringPair1 =
+    val stringPair1: String =
       s"""{
          |  "key" : { "get" : 5 },
          |  "value" : { "get" : "foo }
          |}""".stripMargin
 
-    val bytesPair1 = stringPair1.getBytes("UTF-8")
+    val bytesPair1: Array[Byte] = stringPair1.getBytes("UTF-8")
 
     def pairToJson(pair: Pair): Json = Json(
       "key" -> Json.jNumber(pair.key.get),
@@ -295,14 +299,14 @@ class JsonTest extends FlatSpec with Matchers {
       value <- valueJson.string
     } yield Pair(Key(key), Value(value))
 
-    val jsonPair2 = Json(
+    val jsonPair2: Json = Json(
       "key" -> Json.jNumber(5),
       "value" -> Json.jString("foo")
     )
 
-    val stringPair2 = """{"key":5,"value":"foo"}"""
+    val stringPair2: String = """{"key":5,"value":"foo"}"""
 
-    val bytesPair2 = stringPair2.getBytes("UTF-8")
+    val bytesPair2: Array[Byte] = stringPair2.getBytes("UTF-8")
 
     case class Person(
                        name: String,
@@ -311,16 +315,16 @@ class JsonTest extends FlatSpec with Matchers {
                        mother: Option[String]
                      )
 
-    val personTim =
+    val personTim: Person =
       Person("Tim Drake",19,List("Bo"),Some("Janet Drake"))
 
-    val personBruce =
+    val personBruce: Person =
       Person("Bruce Wayne",38,List("Money", "Alfred"),Some("Martha Wayne"))
 
-    val personBatman =
+    val personBatman: Person =
       Person("Batman",38,List("Batarang", "Batmobile"),None)
 
-    val jsonTim = Json(
+    val jsonTim: Json = Json(
       "name" -> Json.jString("Tim Drake"),
       "age" -> Json.jNumber(19),
       "things" -> Json.array(
@@ -329,7 +333,7 @@ class JsonTest extends FlatSpec with Matchers {
       "mother" -> Json.jString("Janet Drake")
     )
 
-    val jsonBruce = Json(
+    val jsonBruce: Json = Json(
       "name" -> Json.jString("Bruce Wayne"),
       "age" -> Json.jNumber(38),
       "things" -> Json.array(
@@ -339,7 +343,7 @@ class JsonTest extends FlatSpec with Matchers {
       "mother" -> Json.jString("Martha Wayne")
     )
 
-    val jsonBatman = Json(
+    val jsonBatman: Json = Json(
       "name" -> Json.jString("Batman"),
       "age" -> Json.jNumber(38),
       "things" -> Json.array(
@@ -348,7 +352,7 @@ class JsonTest extends FlatSpec with Matchers {
       )
     )
 
-    val jsonNested = Json(
+    val jsonNested: Json = Json(
       "this" -> Json.jString("that"),
       "those" -> Json.array(
         Json.jString("these"),
@@ -361,12 +365,12 @@ class JsonTest extends FlatSpec with Matchers {
       )
     )
 
-    val jsonWithCharacter = Json(
+    val jsonWithCharacter: Json = Json(
       "name" -> Json.jString("Daniel"),
       "favorite_game" -> Json.jString("¡Pokémon Snap!")
     )
 
-    val jsonBruceFrench = Json(
+    val jsonBruceFrench: Json = Json(
       "prénome" -> Json.jString("Bruce Wayne"),
       "âge" -> Json.jNumber(38),
       "des_choses" -> Json.array(
@@ -376,10 +380,10 @@ class JsonTest extends FlatSpec with Matchers {
       "mère" -> Json.jString("Martha Wayne")
     )
 
-    val stringTim =
+    val stringTim: String =
       """{"name":"Tim Drake","age":19,"things":["Bo"],"mother":"Janet Drake"}"""
 
-    val stringBruce =
+    val stringBruce: String =
       """{
         |  "name" : "Bruce Wayne",
         |  "age" : 38,
@@ -390,10 +394,10 @@ class JsonTest extends FlatSpec with Matchers {
         |  "mother" : "Martha Wayne"
         |}""".stripMargin
 
-    val stringBatman =
+    val stringBatman: String =
       """{"name":"Batman","age":38,"things":["Batarang","Batmobile"]}"""
 
-    val stringNested =
+    val stringNested: String =
       """{
          |  "this" : "that",
          |  "those" : [
@@ -429,14 +433,14 @@ class JsonTest extends FlatSpec with Matchers {
          |  ]
          |}""".stripMargin
 
-    val stringWithCharacter =
+    val stringWithCharacter: String =
       """{
         |  "name" : "Daniel",
         |  "favorite_game" : "¡Pokémon Snap!"
         |}
       """.stripMargin
 
-    val stringBruceFrench =
+    val stringBruceFrench: String =
       """{
         |  "prénome" : "Bruce Wayne",
         |  "âge" : 38,
@@ -447,30 +451,30 @@ class JsonTest extends FlatSpec with Matchers {
         |  "mère" : "Martha Wayne"
         |}""".stripMargin
 
-    val bytesTim = stringTim.getBytes("UTF-8")
+    val bytesTim: Array[Byte] = stringTim.getBytes("UTF-8")
 
-    val bytesBruce = stringBruce.getBytes("UTF-8")
+    val bytesBruce: Array[Byte] = stringBruce.getBytes("UTF-8")
 
-    val bytesBatman = stringBatman.getBytes("UTF-8")
+    val bytesBatman: Array[Byte] = stringBatman.getBytes("UTF-8")
 
-    val bytesNested = stringNested.getBytes("UTF-8")
+    val bytesNested: Array[Byte] = stringNested.getBytes("UTF-8")
 
-    val bytesWithCharacter = stringWithCharacter.getBytes("UTF-8")
+    val bytesWithCharacter: Array[Byte] = stringWithCharacter.getBytes("UTF-8")
 
-    val bytesBruceFrench = stringBruceFrench.getBytes("UTF-8")
+    val bytesBruceFrench: Array[Byte] = stringBruceFrench.getBytes("UTF-8")
 
     def leftInverseTestCase[T: JsonSerializer](t: T): Unit = {
       assert(
-        fromJson[T](toJson[T](t)) == Some(t)
+        fromJson[T](toJson[T](t)).contains(t)
       )
       assert(
-        fromJsonString[T](toJsonString[T](t)) == Some(t)
+        fromJsonString[T](toJsonString[T](t)).contains(t)
       )
       assert(
-        fromJsonString[T](toPrettyJsonString[T](t)) == Some(t)
+        fromJsonString[T](toPrettyJsonString[T](t)).contains(t)
       )
       assert(
-        deserialize[T](serialize[T](t)) == Some(t)
+        deserialize[T](serialize[T](t)).contains(t)
       )
     }
 

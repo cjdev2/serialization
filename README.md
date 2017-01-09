@@ -88,16 +88,60 @@ assert(
 
 See "src/test/scala/SerializationDemo.scala" for details.
 
-### JSON Features
+### JSON/Argonaut Integration
 
-In addition to importing core features, import JSON feastures as:
+The library integrates with and can act as a simple wrapper over Argonaut, a pure functional JSON library for Scala.
+
+Import JSON/Argonaut integration as:
 
 ```scala
 import argonaut.{Argonaut, Json}
 import com.cj.serialization.json._
 ```
 
-See "src/test/scala/JsonDemo.scala" for details.
+As the library acts as a simple wrapper, no knowledge of Argonaut is requires to use the JSON features. The one thing you need to learn to do is invoke the `casecodecN` functions, as is done below.
+
+```scala
+case class Person(
+                   name: String,
+                   age: Int,
+                   things: List[String],
+                   mother: Option[String]
+                 )
+
+// We use `casecodec4` because `Person` has four fields.
+object PersonS extends JsonSerializerFromCodec[Person](
+  Argonaut.casecodec4(Person.apply, Person.unapply)(
+  "name", "age", "things", "mother"
+  )
+)
+```
+
+Then `PersonSerializer` can be used to convert back and forth between `Person`, `Json`, `String` and `Array[Byte]`
+
+```scala
+val tim = Person("Tim Drake", 19, List("Bo"), Some("Janet Drake"))
+assert(
+  PersonS.toPrettyJsonString(tim) ==
+    """{
+      |  "name" : "Tim Drake",
+      |  "age" : 19,
+      |  "things" : [
+      |    "Bo"
+      |  ],
+      |  "mother" : "Janet Drake"
+      |}""".stripMargin
+)
+
+val batmanString =
+  """{"name":"Batman","age":38,"things":["Batarang","Batmobile"]}"""
+assert(
+  PersonS.fromJsonString(batmanString) ==
+    Some(Person("Batman", 38, List("Batarang", "Batmobile"), None))
+)
+```
+
+See "src/test/scala/JsonDemo.scala" and "src/test/scala/JsonDemoMinimal.scala" for details.
 
 ### Avro Integration
 
