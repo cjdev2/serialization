@@ -138,7 +138,7 @@ package object json {
     implicitly[JsonSerializer[T]].fromJsonString(string)
 
   /**
-    * Implementation of `JsonSerializer[Json]`
+    * Implementation of [[JsonSerializer]] for `Json`
     */
   implicit object JsonSerializerJson extends JsonSerializer[Json] {
     def toJson(t: Json): Json = t
@@ -146,10 +146,36 @@ package object json {
   }
 
   /**
-    * Create a `JsonSerializer[T]` by supplying a `CodecJson[T]`. Almost always
-    * boilerplate consisting of routine wiring, as a `CodecJson[T]` can be
-    * generated for any case class by supplying the constructor, extractor, and
-    * names for the field.
+    * Class implementing [[JsonSerializer]] for 'List[T]' whenever `T` has
+    * instances of `EncodeJson` and `DecodeJson` in implicit scope. No user
+    * invocation is necessary.
+    *
+    * @param encoderT
+    * @param decoderT
+    * @tparam T
+    * @return
+    */
+  implicit def jsonSerializerList[T](
+                                      implicit
+                                      encoderT : EncodeJson[T],
+                                      decoderT : DecodeJson[T]
+                                    ): JsonSerializer[List[T]] =
+    new JsonSerializer[List[T]] {
+
+      import scalaz._, Scalaz._
+
+      def toJson(ts: List[T]): Json =
+        argonaut.Json.jArray(ts.map(encoderT.encode))
+
+      def fromJson(json: Json): Option[List[T]] =
+        json.array.flatMap(_.map(decoderT.decodeJson(_).toOption).sequence)
+    }
+
+  /**
+    * Create a `JsonSerializer[T]` by supplying a `CodecJson[T]`. The invocation
+    * is almost always boilerplate, consisting of routine wiring, as a
+    * `CodecJson[T]` can be generated for any case class by supplying the
+    * constructor, extractor, and names of the field.
     *
     * For example:
     * {{{
