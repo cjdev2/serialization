@@ -8,12 +8,10 @@ object ThriftDemo extends App {
   // thrift-generated class
   import local.test.serialization.thrift.scala.TestRecord
 
-  implicit object DeserializableTestRecord
-    extends ThriftDeserializer[TestRecord](TestRecord)
-
   val record: TestRecord = TestRecord("foó", 123l)
 
-  assert({
-    deserialize[TestRecord](serialize(record)).contains(record)
-  })
+  // Scrooge-generated classes are instances of `Serializable` by default
+  serialize(record)
+
+  // To deserialize, create a
 }
