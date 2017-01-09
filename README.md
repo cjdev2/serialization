@@ -109,7 +109,7 @@ case class Person(
                    mother: Option[String]
                  )
 
-// We use `casecodec4` because `Person` has four fields.
+// use `casecodec4` her because `Person` has four fields
 object PersonS extends JsonSerializerFromCodec[Person](
   Argonaut.casecodec4(Person.apply, Person.unapply)(
   "name", "age", "things", "mother"
