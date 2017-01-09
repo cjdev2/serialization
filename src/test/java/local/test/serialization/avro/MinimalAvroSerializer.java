@@ -11,7 +11,8 @@ public class MinimalAvroSerializer {
     public static byte[] serialize(TestRecord testRecord) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(output, null);
-        new SpecificDatumWriter<TestRecord>(TestRecord.getClassSchema()).write(testRecord, encoder);
+        new SpecificDatumWriter<TestRecord>(TestRecord.getClassSchema())
+                .write(testRecord, encoder);
         encoder.flush();
         output.close();
         return output.toByteArray();
