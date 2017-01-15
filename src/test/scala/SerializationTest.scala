@@ -1,6 +1,7 @@
+import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
-class SerializationTest extends FlatSpec with Matchers {
+class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
   import com.cj.serialization._
 
@@ -20,8 +21,11 @@ class SerializationTest extends FlatSpec with Matchers {
         s"""Foo ${t.bar} ${t.baz}""".getBytes
     }
 
-    // then: `serialize` should be available for arguments of type `Foo`
-    serialize(Foo(0,'c')) should be("Foo 0 c".getBytes)
+    // then: `serialize` should work for arguments of type `Foo`
+    forAll { (n: Int, c: Char) =>
+      val foo = Foo(n, c)
+      serialize(foo) should be(s"Foo $n $c".getBytes)
+    }
   }
 
   behavior of "Deserializable"
@@ -32,28 +36,29 @@ class SerializationTest extends FlatSpec with Matchers {
 
     // when: we implement `Deserialize[Foo]`
     implicit object DeserializableFoo extends Deserializable[Foo] {
+
+      import scala.util.Try
+      private val regex = """Foo (-?\d+) (.)""".r
+
       def deserialize(bytes: Array[Byte]): Option[Foo] = {
-
-        val tokens = new String(bytes).split(" ")
-
-        if (tokens.length == 3 && tokens(0) == "Foo") {
-          val num = scala.util.Try(tokens(1).toInt).toOption
-          val char = tokens(2).toList match {
-            case List(c) => Option(c)
-            case _ => None
-          }
-          for {
-            n <- num
-            c <- char
+        new String(bytes) match {
+          case regex(nStr, cStr) => for {
+            n <- Try(nStr.toInt).toOption.flatMap(Option.apply)
+            c <- Try(cStr.head).toOption.flatMap(Option.apply)
           } yield Foo(n, c)
-        } else None
+          case _ => None
+        }
       }
     }
 
     // then: `deserialize` should be able to return values of type `Option[Foo]`
-    deserialize[Foo](
-      "Foo 123 a".getBytes
-    ) should be(Some(Foo(123, 'a')))
+    deserialize[Foo]("Foo 123 á".getBytes) should be(Some(Foo(123, 'á')))
+    deserialize[Foo]("Foo -123 á".getBytes) should be(Some(Foo(-123, 'á')))
+
+    forAll { (n: Int, c: Char) =>
+      val fooBytes: Array[Byte] = s"Foo $n $c".getBytes
+      deserialize[Foo](fooBytes) should be(Some(Foo(n, c)))
+    }
   }
 
   behavior of "String"
