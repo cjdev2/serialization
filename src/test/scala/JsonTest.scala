@@ -351,9 +351,9 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
       )
     )
 
-    forAll { (n: String, a: Int, ts: List[String], om: Option[String]) =>
+    forAll { (n: String, a: Int, ts: List[String], mo: Option[String]) =>
 
-      val person = Person(n, a, ts, om)
+      val person = Person(n, a, ts, mo)
 
       deserialize[Person](serialize(person)) should be(Some(person))
     }
