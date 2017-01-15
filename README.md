@@ -163,8 +163,7 @@ val rec: Rec = new Rec( ... )
 val bytes: Array[Byte] = serialize(rec)
 
 // deserializing requires a bit of boilerplate
-implicit object DeserializableRec
-  extends AvroDeserializable[Rec](Rec.getClassSchema)
+implicit object RecD extends AvroDeserializable[Rec](Rec.getClassSchema)
 
 val incomingBytes: Array[Byte] = ...
 val maybeRec: Option[Rec] = deserialize(incomingBytes)
@@ -193,7 +192,7 @@ val rec: Rec = Rec( ... )
 val bytes: Array[Byte] = serialize(rec)
 
 // deserializing requires a bit of boilerplate
-implicit object DeserializableRec extends ThriftDeserializer[Rec](Rec)
+implicit object RecD extends ThriftDeserializer[Rec](Rec)
 
 val incomingBytes: Array[Byte] = ...
 val maybeRec: Option[Rec] = deserialize(incomingBytes)
