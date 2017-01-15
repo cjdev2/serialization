@@ -7,8 +7,7 @@ public class MinimalThriftDeserializer {
 
     public static TestRecord deserialize(byte[] bytes) throws org.apache.thrift.TException {
         TestRecord record = new TestRecord();
-        new TDeserializer()
-                .deserialize(record, bytes);
+        new TDeserializer().deserialize(record, bytes);
         return record;
     }
 }
