@@ -129,7 +129,6 @@ package object serialization {
     }
 
     implicit object DeserializableByte extends Deserializable[Byte] {
-
       def deserialize(bytes: Array[Byte]): Option[Byte] = bytes.length match {
         case 1 => Option(bytes.head)
         case _ => None

@@ -117,7 +117,7 @@ package object avro {
     * @tparam U Avro-generated type
     * @return A `RecordDeserializer` that produces `Option[T]`s
     */
-  @deprecated("`makeAvroDeserializer` replaces this method.")
+  @deprecated("`AvroDeserializable` replaces this method.")
   def mkDeserializer[T, U >: Null <: SpecificRecord](f: U => T, schema: Schema)
   : RecordDeserializer[Option[T]] = {
     val avroDeserializer = mkAvroDeserializer(schema)
@@ -146,7 +146,7 @@ package object avro {
     * @tparam T An Avro-generated class extending `SpecificRecord`
     * @return A `RecordDeserializer` that produces `T`s
     */
-  @deprecated("`makeAvroDeserializer` replaces this method.")
+  @deprecated("`AvroDeserializable` replaces this method.")
   def mkAvroDeserializer[T >: Null <: SpecificRecord](schema: Schema)
   : RecordDeserializer[T] = {
 
