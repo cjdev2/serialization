@@ -228,7 +228,7 @@ package object json {
   /**
     * Convenience methods for manipulating `Option[Json]`.
     */
-  private implicit class JsonOp(x: Option[Json]) {
+  implicit class JsonOp(x: Option[Json]) {
 
     /**
       * If 'this' is present and is a JSON object,
