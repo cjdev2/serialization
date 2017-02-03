@@ -224,4 +224,77 @@ package object json {
     def toJson(t: T): Json = to(t)
     def fromJson(json: Json): Option[T] = from(json)
   }
+
+  /**
+    * Convenience methods for manipulating `Option[Json]`.
+    */
+  private implicit class JsonOp(x: Option[Json]) {
+
+    /**
+      * If 'this' is present and is a JSON object,
+      * attempts to lookup the value at the provided key.
+      */
+    def ~>(key: String): Option[Json] =
+      x.flatMap(_.assoc).flatMap(_.toMap.get(key))
+
+    /**
+      * If 'this' is present and is a JSON array,
+      * attempts to lookup the value at the privided index.
+      */
+    def ~>(n: Int): Option[Json] =
+      x.flatMap(_.array).flatMap(_.lift(n))
+
+    /**
+      * If 'this' is present and is a JSON object,
+      * returns the object represented as a `Map`.
+      */
+    def obj: Option[Map[String, Json]] =
+      x.flatMap(_.assoc).map(_.toMap)
+
+    /**
+      * If 'this' is present and is a JSON array,
+      * returns the array represented as a `List`.
+      */
+    def arr: Option[List[Json]] =
+      x.flatMap(_.array)
+
+    /**
+      * If 'this' is present and is a JSON number,
+      * attempts to represent the value as a `Long`.
+      */
+    def long: Option[Long] =
+      x.flatMap(_.number).flatMap(_.toLong)
+
+    /**
+      * If 'this' is present and is a JSON number,
+      * attempts to represent the value as a `Double`.
+      */
+    def double: Option[Double] =
+      x.flatMap(_.number).flatMap(_.toDouble)
+
+    /**
+      * If 'this' is present and is a JSON string,
+      * returns the string as a `String`.
+      */
+    def string: Option[String] =
+      x.flatMap(_.string)
+
+    /**
+      * If 'this' is present and is a JSON 'true' or 'false' literal,
+      * returns an appropriate representation as a `Boolean`.
+      */
+    def boolean: Option[Boolean] =
+      x.flatMap(_.bool)
+
+    /**
+      * If 'this' is present and is the JSON 'null' literal,
+      * returns `Some({})`, otherwise returns `None`.
+      */
+    def nullLiteral: Option[Unit] =
+      x.map(_.isNull)
+        .flatMap(_ match {
+          case false => None
+          case true => Some({})
+        })
+  }
 }

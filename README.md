@@ -16,7 +16,7 @@ For core features add:
 <dependency>
     <groupId>com.cj</groupId>
     <artifactId>serialization</artifactId>
-    <version>0.7-SNAPSHOT</version>
+    <version>0.8-SNAPSHOT</version>
 </dependency>
 ```
 
