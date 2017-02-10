@@ -240,7 +240,7 @@ package object json {
 
     /**
       * If 'this' is a JSON array,
-      * attempts to lookup the value at the privided index.
+      * attempts to lookup the value at the provided index.
       */
     def ~>(n: Int): Option[Json] =
       x.array.flatMap(_.lift(n))
@@ -284,7 +284,7 @@ package object json {
 
     /**
       * If 'this' contains a Json and it is a JSON array,
-      * attempts to lookup the value at the privided index.
+      * attempts to lookup the value at the provided index.
       */
     def ~>(n: Int): Option[Json] =
       x.flatMap(_.array).flatMap(_.lift(n))
