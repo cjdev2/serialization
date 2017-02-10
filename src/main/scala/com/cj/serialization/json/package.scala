@@ -12,7 +12,7 @@ package object json {
     * A type used internally by Argonaut that encapsulates a strategy for
     * decoding `Json` to `T`
     *
-    * @tparam T
+    * @tparam T The target type of the decoder.
     */
   type DecodeJson[T] = argonaut.DecodeJson[T]
 
@@ -20,7 +20,7 @@ package object json {
     * A type used internally by Argonaut that encapsulates a strategy for
     * encoding `T` to `Json`
     *
-    * @tparam T
+    * @tparam T The source type of the encoder.
     */
   type EncodeJson[T] = argonaut.EncodeJson[T]
 
@@ -28,7 +28,7 @@ package object json {
     * A type used by Argonaut that encapsulate a strategy for encoding and
     * decoding between `T` and `Json`.
     *
-    * @tparam T
+    * @tparam T The source/target type of the encoder/decoder.
     */
   type CodecJson[T] = argonaut.CodecJson[T]
 
@@ -150,10 +150,10 @@ package object json {
     * instances of `EncodeJson` and `DecodeJson` in implicit scope. No user
     * invocation is necessary.
     *
-    * @param encoderT
-    * @param decoderT
-    * @tparam T
-    * @return
+    * @param encoderT An encoder for type T.
+    * @param decoderT A decoder for type T.
+    * @tparam T       A target/source type for the serializer.
+    * @return         A JSON serializer utilizing the implicit encoder/decoder.
     */
   implicit def jsonSerializerList[T](
                                       implicit
@@ -167,8 +167,9 @@ package object json {
       def toJson(ts: List[T]): Json =
         argonaut.Json.jArray(ts.map(encoderT.encode))
 
-      def fromJson(json: Json): Option[List[T]] =
+      def fromJson(json: Json): Option[List[T]] = {
         json.array.flatMap(_.map(decoderT.decodeJson(_).toOption).sequence)
+      }
     }
 
   /**
@@ -226,6 +227,50 @@ package object json {
   }
 
   /**
+    * Convenience methods for manipulating `Json`.
+    */
+  implicit class JsonX(x: Json) {
+
+    /**
+      * If 'this' is a JSON object,
+      * attempts to lookup the value at the provided key.
+      */
+    def ~>(key: String): Option[Json] =
+      x.assoc.flatMap(_.toMap.get(key))
+
+    /**
+      * If 'this' is a JSON array,
+      * attempts to lookup the value at the privided index.
+      */
+    def ~>(n: Int): Option[Json] =
+      x.array.flatMap(_.lift(n))
+
+    /**
+      * If 'this' is a JSON object,
+      * returns the object represented as a `Map`.
+      */
+    def asMap: Option[Map[String, Json]] =
+      x.assoc.map(_.toMap)
+
+    /**
+      * If 'this' is a JSON array,
+      * returns the array represented as a `List`.
+      */
+    def asList: Option[List[Json]] =
+      x.array
+
+    /**
+      * If 'this' is the JSON 'null' literal,
+      * returns `Some({})`, otherwise returns `None`.
+      */
+    def nullLiteral: Option[Unit] =
+      x.isNull match {
+        case false => None
+        case true => Some({})
+      }
+  }
+
+  /**
     * Convenience methods for manipulating `Option[Json]`.
     */
   implicit class JsonOp(x: Option[Json]) {
@@ -248,14 +293,14 @@ package object json {
       * If 'this' contains a Json and it is a JSON object,
       * returns the object represented as a `Map`.
       */
-    def obj: Option[Map[String, Json]] =
+    def asMap: Option[Map[String, Json]] =
       x.flatMap(_.assoc).map(_.toMap)
 
     /**
       * If 'this' contains a Json and it is a JSON array,
       * returns the array represented as a `List`.
       */
-    def arr: Option[List[Json]] =
+    def asList: Option[List[Json]] =
       x.flatMap(_.array)
 
     /**
@@ -283,7 +328,7 @@ package object json {
       * If 'this' contains a Json and it is a JSON 'true' or 'false' literal,
       * returns an appropriate representation as a `Boolean`.
       */
-    def boolean: Option[Boolean] =
+    def bool: Option[Boolean] =
       x.flatMap(_.bool)
 
     /**
@@ -291,10 +336,9 @@ package object json {
       * returns `Some({})`, otherwise returns `None`.
       */
     def nullLiteral: Option[Unit] =
-      x.map(_.isNull)
-        .flatMap(_ match {
-          case false => None
-          case true => Some({})
-        })
+      x.map(_.isNull).flatMap({
+        case false => None
+        case true => Some({})
+      })
   }
 }
