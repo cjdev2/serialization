@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>serialization</artifactId>
-    <version>0.8-SNAPSHOT</version>
+    <version>0.9-SNAPSHOT</version>
 
     <dependencies>
         <dependency>

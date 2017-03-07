@@ -9,8 +9,12 @@ class AvroTest extends FlatSpec with Matchers with PropertyChecks {
   import com.cj.serialization.avro._
   import local.test.serialization.avro.TestRecord
 
-  "AvroDemo" should "not be out of date" in {
+  "AvroDemo" should "be up to date" in {
     AvroDemo.main(args = Array[String]())
+  }
+
+  "AvroTestJ" should "be up to date" in {
+    local.test.serialization.avro.AvroTestJ.main(Array[String]())
   }
 
   behavior of "SerializableSpecificRecord"
