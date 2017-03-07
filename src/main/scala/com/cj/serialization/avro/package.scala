@@ -13,7 +13,7 @@ package object avro {
   /**
     * This instance of [[Serializable]]`[SpecificRecord]`
     * is sufficient to serialize any child class of
-    * [[SpecificRecord]]. Simply import this package
+    * `SpecificRecord`. Simply import this package
     * and the parent package into your source and call
     * [[serialize]] on your avro objects.
     */
@@ -36,8 +36,8 @@ package object avro {
   /**
     * We need a separate instance of
     * [[Deserializable]]`[Bar]` for each child `Bar` of
-    * [[SpecificRecord]], and we need to explicitly
-    * supply the [[Schema]] of `Bar` as a constructor argument.
+    * `SpecificRecord`, and we need to explicitly
+    * supply the `Schema` of `Bar` as a constructor argument.
     *
     * In your source, invoke as
     * {{{
@@ -46,8 +46,8 @@ package object avro {
     * to put a `Deserializable[Bar]` into scope, then just call [[deserialize]]
     * on your bytes thereafter.
     *
-    * @param schema The [[Schema]] of `T`, typically `T.getClassSchema`
-    * @tparam T A child class of [[SpecificRecord]]
+    * @param schema The `Schema` of `T`, typically `T.getClassSchema`
+    * @tparam T A child class of `SpecificRecord`
     */
   class AvroDeserializable[T >: Null <: SpecificRecord](schema: Schema)
     extends Deserializable[T] {
@@ -74,8 +74,8 @@ package object avro {
     * }}}
     * then call `foo` on your bytes.
     *
-    * @param schema The [[Schema]] of `T`, typically `T.getClassSchema`
-    * @tparam T A child class of [[SpecificRecord]]
+    * @param schema The `Schema` of `T`, typically `T.getClassSchema`
+    * @tparam T A child class of `SpecificRecord`
     * @return A function that contains in its closure a single, reusable
     *         instance of [[AvroDeserializable]]`[T]` for minimal overhead
     */
@@ -131,7 +131,7 @@ package object avro {
   /**
     * Make a [[RecordSerializer]] for avro-generated class `T`.
     *
-    * @tparam T An Avro-generated class extending [[SpecificRecord]]
+    * @tparam T An Avro-generated class extending `SpecificRecord`
     * @return A [[RecordSerializer]] that consumes `T`s
     */
   @deprecated("`serialize` from `com.cj.serialization` makes this method unnecessary.")
