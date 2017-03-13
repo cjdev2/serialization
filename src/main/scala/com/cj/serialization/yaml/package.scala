@@ -7,9 +7,11 @@ package object yaml {
     def toYaml(t: T): Yaml
     def fromYaml(yaml: Yaml): Option[T]
 
-    final def toYamlString(t: T): String = ???
-    final def toPrettyYamlString(t: T): String = ???
-    final def fromYamlString(string: String): Option[T] = ???
+    final def toYamlString(t: T): String =  toYaml(t).print
+    final def toPrettyYamlString(t: T): String = toYaml(t).prettyPrint
+
+    final def fromYamlString(string: String): Option[T] =
+      Yaml.parse(string).flatMap(fromYaml)
 
     final def serialize(t: T): Array[Byte] =
       implicitly[Serializable[String]].serialize(toYamlString(t))
@@ -40,64 +42,71 @@ package object yaml {
     def fromYaml(yaml: Yaml): Option[Yaml] = Option(yaml)
   }
 
+  implicit object YamlCodecString extends YamlCodec[String] {
+    def toYaml(t: String): Yaml = Yaml.string(t)
+    def fromYaml(yaml: Yaml): Option[String] = yaml.string
+  }
+
+  implicit object YamlCodecLong extends YamlCodec[Long] {
+    def toYaml(t: Long): Yaml = Yaml.int(t)
+    def fromYaml(yaml: Yaml): Option[Long] = yaml.int
+  }
+
+  implicit object YamlCodecDouble extends YamlCodec[Double] {
+    def toYaml(t: Double): Yaml = Yaml.float(t)
+    def fromYaml(yaml: Yaml): Option[Double] = yaml.float
+  }
+
+  implicit object YamlCodecBoolean extends YamlCodec[Boolean] {
+    def toYaml(t: Boolean): Yaml = Yaml.bool(t)
+    def fromYaml(yaml: Yaml): Option[Boolean] = yaml.bool
+  }
+
   implicit def yamlCodecList[T](
                                  implicit
-                                 codecT: YamlCodec[T]
+                                 ev: YamlCodec[T]
                                ): YamlCodec[List[T]] =
     new YamlCodec[List[T]] {
-
       import scalaz._, Scalaz._
 
       def toYaml(t: List[T]): Yaml =
-        Yaml.seq(t.map(codecT.toYaml))
+        Yaml.seq(t.map(ev.toYaml))
 
       def fromYaml(yaml: Yaml): Option[List[T]] =
-        yaml.asList.flatMap(_.map(codecT.fromYaml).sequence)
+        yaml.asList.flatMap(_.map(ev.fromYaml).sequence)
     }
 
-//  implicit def yamlCodecMap[K, V](
-//                                   implicit
-//                                   codecK: YamlCodec[K],
-//                                   codecV: YamlCodec[V]
-//                                 ): YamlCodec[Map[K, V]] =
-//    new YamlCodec[Map[K, V]] {
-//
-//      import scalaz._, Scalaz._
-//
-//      def toYaml(t: Map[K, V]): Yaml =
-//        Yaml.map(t.map({ case (k, v) => (codecK.toYaml(k), codecV.toYaml(v)) }))
-//
-//      def fromYaml(yaml: Yaml): Option[Map[K, V]] = for {
-//        m1 <- yaml.asMap
-//        m2 <- m1.map({
-//          case (yk, yv) => for {
-//            k <- codecK.fromYaml(yk)
-//            v <- codecV.fromYaml(yv)
-//          } yield (k, v)
-//        }).toList.sequence
-//      } yield m2.toMap
-//    }
+  implicit def yamlCodecMap[K, V](
+                                   implicit
+                                   ev1: YamlCodec[K],
+                                   ev2: YamlCodec[V]
+                                 ): YamlCodec[Map[K, V]] =
+    new YamlCodec[Map[K, V]] {
+      import scalaz._, Scalaz._
 
-//  implicit def yamlCodecSet[T](
-//                                implicit
-//                                codecT: YamlCodec[T]
-//                              ): YamlCodec[Set[T]] =
-//    new YamlCodec[Set[T]] {
-//
-//      import scalaz._, Scalaz._
-//
-//      def toYaml(t: Set[T]): Yaml =
-//        Yaml.set(t.map(codecT.toYaml))
-//
-//      def fromYaml(yaml: Yaml): Option[Set[T]] =
-//        yaml.asSet.flatMap(_.map(codecT.fromYaml).toList.sequence).map(_.toSet)
-//    }
+      def toYaml(t: Map[K, V]): Yaml =
+        Yaml.map(t.map(kv => (ev1.toYaml(kv._1), ev2.toYaml(kv._2))))
 
-  class YamlCodecFromConverters[T](
-                                    to: T => Yaml,
-                                    from: Yaml => Option[T]
-                                  ) extends YamlCodec[T] {
-    def toYaml(t: T): Yaml = to(t)
-    def fromYaml(yaml: Yaml): Option[T] = from(yaml)
-  }
+      def fromYaml(yaml: Yaml): Option[Map[K, V]] =
+        yaml.asMap.flatMap(
+          _.toList.map(kv => for {
+            k <- ev1.fromYaml(kv._1)
+            v <- ev2.fromYaml(kv._2)
+          } yield (k, v)).sequence.map(_.toMap)
+        )
+    }
+
+  implicit def yamlCodecStream[T](
+                                   implicit
+                                   ev: YamlCodec[T]
+                                 ): YamlCodec[Stream[T]] =
+    new YamlCodec[Stream[T]] {
+      import scalaz._, Scalaz._
+
+      def toYaml(t: Stream[T]): Yaml =
+        Yaml.stream(t.map(ev.toYaml))
+
+      def fromYaml(yaml: Yaml): Option[Stream[T]] =
+        yaml.asStream.flatMap(_.map(ev.fromYaml).sequence)
+    }
 }

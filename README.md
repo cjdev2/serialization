@@ -2,11 +2,13 @@
 
 Serialization library exposing a typeclass-like functional interface for Scala 2.11 and 2.12.
 
-Copyright © 2016 CJ Affiliate under the terms of the MIT License. See "LICENSE" for details.
+Copyright © 2017 CJ Affiliate under the terms of the MIT License. See "LICENSE" for details.
 
 This branch is binary-compatible with Scala versions 2.11.x.
 
-At this time, only supports UTF-8 character encoding.
+Currentl limitations: 
+- Only supports UTF-8 character encoding.
+- YAML support is incomplete and experimental.
 
 ## For Maven Projects
 
@@ -16,7 +18,7 @@ For core features add:
 <dependency>
     <groupId>com.cj</groupId>
     <artifactId>serialization</artifactId>
-    <version>0.8-SNAPSHOT</version>
+    <version>1.1</version>
 </dependency>
 ```
 

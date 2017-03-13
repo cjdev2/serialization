@@ -7,73 +7,85 @@ sealed abstract class Yaml extends Product with Serializable {
   def fold[X](
                withScalar: String => X,
                withSeq: List[Yaml] => X,
-               withMap: Map[String, Yaml] => X
+               withMap: Map[Yaml, Yaml] => X,
+               withStream: Stream[Yaml] => X
              ): X =
     this match {
       case YScalar(string) => withScalar(string)
       case YSeq(seq) => withSeq(seq)
       case YMap(map) => withMap(map)
+      case YStream(stream) => withStream(stream)
     }
 
-  def ~>(key: String): Option[Yaml] = this match {
+  def ~>(key: Yaml): Option[Yaml] = this match {
     case YMap(map) => map.get(key)
     case _ => None
   }
 
-  def ~>(n: Int): Option[Yaml] = this match {
-    case YSeq(seq) => seq.lift(n)
-    case YMap(map) => map.get(n.toString)
+  def ~>(key: String): Option[Yaml] = this match {
+    case YMap(map) => map.get(Yaml.string(key))
     case _ => None
   }
 
-  def asMap: Option[Map[String, Yaml]] = this match {
-    case YMap(map) => Option(map)
+  def ~>(key: Int): Option[Yaml] = this match {
+    case YMap(map) => map.get(Yaml.int(key))
+    case YSeq(seq) => seq.lift(key)
+    case _ => None
+  }
+
+  def asMap: Option[Map[Yaml, Yaml]] = this match {
+    case YMap(map) => safely(map)
     case _ => None
   }
 
   def asList: Option[List[Yaml]] = this match {
-    case YSeq(seq) => Option(seq)
+    case YSeq(seq) => safely(seq)
+    case _ => None
+  }
+
+  def asStream: Option[Stream[Yaml]] = this match {
+    case YStream(stream) => safely(stream)
     case _ => None
   }
 
   def yNull: Option[Unit] = this match {
-    case YScalar(s) if matchNull(s) => Option({})
+    case YScalar(s) if matchNull(s) => safely({})
     case _ => None
   }
 
   def yNan: Option[Unit] = this match {
-    case YScalar(s) if matchNan(s) => Option({})
+    case YScalar(s) if matchNan(s) => safely({})
     case _ => None
   }
 
   def yInf: Option[Unit] = this match {
-    case YScalar(s) if matchInf(s) => Option({})
+    case YScalar(s) if matchInf(s) => safely({})
     case _ => None
   }
 
   def yNegInf: Option[Unit] = this match {
-    case YScalar(s) if matchNegInf(s) => Option({})
+    case YScalar(s) if matchNegInf(s) => safely({})
     case _ => None
   }
 
   def bool: Option[Boolean] = this match {
-    case YScalar(s) if matchTrue(s) => Option(true)
-    case YScalar(s) if matchFalse(s) => Option(false)
+    case YScalar(s) if matchTrue(s) => safely(true)
+    case YScalar(s) if matchFalse(s) => safely(false)
     case _ => None
   }
 
-  def long: Option[Long] = this match {
+  def int: Option[Long] = this match {
     case YScalar(s) => safely(s.toLong)
     case _ => None
   }
 
-  def double: Option[Double] = this match {
+  def float: Option[Double] = this match {
     case YScalar(s) => safely(s.toDouble)
     case _ => None
   }
 
   def string: Option[String] = this match {
-    case YScalar(s) => Option(stripQuotes(s))
+    case YScalar(s) => safely(s)
     case _ => None
   }
 
@@ -84,9 +96,13 @@ sealed abstract class Yaml extends Product with Serializable {
 
 object Yaml {
 
-  def parse(raw: String): Option[Yaml] = YamlS.parseYaml(raw)
+  def apply(n: Long): Yaml = Yaml.int(n)
+  def apply(x: Double): Yaml = Yaml.float(x)
+  def apply(p: Boolean): Yaml = Yaml.bool(p)
+  def apply(s: String): Yaml = Yaml.string(s)
+  def apply(pairs: (Yaml, Yaml)*): Yaml = Yaml.map(pairs.toMap)
 
-  def apply(fields: (String, Yaml)*): Yaml = YMap(fields.toMap)
+  def parse(raw: String): Option[Yaml] = YamlS.parseYaml(raw)
 
   def yNull: Yaml = YScalar("~")
   def yNan: Yaml = YScalar(".nan")
@@ -97,81 +113,100 @@ object Yaml {
   def float(x: Double): Yaml = YScalar(x.toString)
   def string(s: String): Yaml = YScalar(s)
   def seq(seq: List[Yaml]): Yaml = YSeq(seq)
-  def map(map: Map[String, Yaml]): Yaml = YMap(map)
+  def map(map: Map[Yaml, Yaml]): Yaml = YMap(map)
+  def stream(stream: Stream[Yaml]): Yaml = YStream(stream)
 
-  implicit class DYamlOp(x: Option[Yaml]) {
+  implicit class YamlOp(x: Option[Yaml]) {
+    def ~>(key: Yaml): Option[Yaml] = x.flatMap(y => y ~> key)
     def ~>(key: String): Option[Yaml] = x.flatMap(y => y ~> key)
-    def ~>(n: Int): Option[Yaml] = x.flatMap(y => y ~> n)
-    def asMap: Option[Map[String, Yaml]] = x.flatMap(y => y.asMap)
+    def ~>(key: Int): Option[Yaml] = x.flatMap(y => y ~> key)
+    def asMap: Option[Map[Yaml, Yaml]] = x.flatMap(y => y.asMap)
     def asList: Option[List[Yaml]] = x.flatMap(y => y.asList)
-    def nullLit: Option[Unit] = x.flatMap(y => y.yNull)
-    def nanLit: Option[Unit] = x.flatMap(y => y.yNan)
-    def infLit: Option[Unit] = x.flatMap(y => y.yInf)
-    def negInfLit: Option[Unit] = x.flatMap(y => y.yNegInf)
+    def asStream: Option[Stream[Yaml]] = x.flatMap(y => y.asStream)
+    def yNull: Option[Unit] = x.flatMap(y => y.yNull)
+    def yNan: Option[Unit] = x.flatMap(y => y.yNan)
+    def yInf: Option[Unit] = x.flatMap(y => y.yInf)
+    def yNegInf: Option[Unit] = x.flatMap(y => y.yNegInf)
     def bool: Option[Boolean] = x.flatMap(y => y.bool)
-    def long: Option[Long] = x.flatMap(y => y.long)
-    def double: Option[Double] = x.flatMap(y => y.double)
+    def int: Option[Long] = x.flatMap(y => y.int)
+    def float: Option[Double] = x.flatMap(y => y.float)
     def string: Option[String] = x.flatMap(y => y.string)
   }
 }
 
 private case class YScalar(scalar: String) extends Yaml
 private case class YSeq(seq: List[Yaml]) extends Yaml
-private case class YMap(map: Map[String, Yaml]) extends Yaml
+private case class YMap(map: Map[Yaml, Yaml]) extends Yaml
+private case class YStream(stream: Stream[Yaml]) extends Yaml
 
 private object YamlS {
-
-  import org.yaml.snakeyaml.{Yaml => SnakeYaml}
-  import scala.collection.JavaConversions._
-  import scalaz._, Scalaz._
 
   def safely[T](t: => T): Option[T] =
     scala.util.Try(t).toOption.flatMap(Option.apply)
 
   def parseYaml(raw: String): Option[Yaml] = {
 
-    val maybeMapping: Option[Map[String, Any]] = safely({
-      val snakeYaml = new SnakeYaml().load(raw)
-      snakeYaml.asInstanceOf[java.util.Map[String, Any]].toMap
-    })
+    import org.yaml.snakeyaml.{Yaml => SnakeYaml}
+    import scala.collection.JavaConversions._
+    import scalaz._, Scalaz._
 
-    val maybeSequence: Option[List[Any]] = safely({
-      val snakeYaml = new SnakeYaml().load(raw)
-      snakeYaml.asInstanceOf[java.util.ArrayList[Any]].toList
-    })
+    def parseDoc(a: Any): Option[Yaml] = a match {
+      case a: java.util.Map[_, _] => parseMap(a.toMap)
+      case a: java.util.List[_] => parseList(a.toList)
+      case _ => safely(YScalar(a.toString))
+    }
 
-    (maybeMapping, maybeSequence) match {
-      case (Some(_), Some(_)) => None
-      case (Some(map), None) => parseMap(map)
-      case (None, Some(list)) => parseList(list)
-      case (None, None) => Option(YScalar(raw))
+    def parseMap(map: Map[Any, Any]): Option[Yaml] =
+      map.toList.map(kv => for {
+        k <- parseDoc(kv._1)
+        v <- parseDoc(kv._2)
+      } yield (k, v)).sequence.map(l => YMap(l.toMap))
+
+    def parseList(list: List[_]): Option[Yaml] =
+      list.map(a => parseDoc(a)).sequence.map(YSeq)
+
+    def parseStream(stream: Stream[_]): Option[Yaml] =
+      stream.map(a => parseDoc(a)).sequence.map(YStream)
+
+    safely(new SnakeYaml().load(raw)) match {
+      case Some(a) => parseDoc(a)
+      case None => safely(new SnakeYaml().loadAll(raw)) match {
+        case Some(it) => parseStream(it.toStream)
+        case None => None
+      }
     }
   }
 
-  def parseMap(map: Map[String, Any]): Option[Yaml] =
-    map.map({ case (s, a) => (s, parseYaml(a.toString)) }).sequence.map(YMap)
-
-  def parseList(list: List[Any]): Option[Yaml] =
-    list.map(a => parseYaml(a.toString)).sequence.map(YSeq)
-
   def printYaml(y: Yaml): String = y.fold(
-    withScalar = identity,
+    withScalar = escapeIf,
     withSeq = "[" + _.map(_.print).mkString(", ") + "]",
     withMap = {
-      def f(kv: (String, Yaml)): String = kv._1 + ": " + kv._2.print
+      def f(kv: (Yaml, Yaml)): String = kv._1.print + ": " + kv._2.print
       "{" + _.map(f).mkString(", ") + "}"
-    }
+    },
+    withStream = _.foldLeft("")((s, y) => s + y.print + "\n...\n")
   )
 
   def prettyPrintYaml(y: Yaml): String = {
-//
-//    def makeLine(indentLevel: Int, contents: String): String =
-//      (1 to indentLevel).foldLeft("")((acc, _) => acc + "  ") + contents + "\n"
-//
-//    def helper(currentIndent: Int, acc: String, rest: Yaml): String = ???
-//
-//    helper(0, "", y)
-    printYaml(y) // TODO: make pretty
+
+    //def makeLine(indentLevel: Int, contents: String): String =
+    //  (1 to indentLevel).foldLeft("")((acc, _) => acc + "  ") + contents + "\n"
+
+    // def helper(currentIndent: Int, acc: String, rest: Yaml): String = ???
+
+    // helper(0, "", y)
+
+    y.print
+  }
+
+  def escapeIf(raw: String): String = {
+    val s = escape(raw)
+    if (s.contains("\\")) s else raw
+  }
+
+  def escape(raw: String): String = {
+    import scala.reflect.runtime.universe._
+    Literal(Constant(raw)).toString
   }
 
   def matchNull(s: String): Boolean = s match {
@@ -236,13 +271,5 @@ private object YamlS {
     case "Off" => true
     case "OFF" => true
     case _ => false
-  }
-
-  def stripQuotes(s: String): String = s match {
-    case _ if s.nonEmpty && s.head == ''' && s.last == ''' =>
-      s.slice(1, s.length - 1)
-    case _ if s.nonEmpty && s.head == '"' && s.last == '"' =>
-      s.slice(1, s.length - 1)
-    case _ => s
   }
 }
