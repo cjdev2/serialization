@@ -91,7 +91,7 @@ sealed abstract class Yaml extends Product with Serializable {
 
   def print: String = printYaml(this)
 
-  def prettyPrint: String = prettyPrintYaml(this)
+  def prettyPrint: String = prettyPrintYaml(2, this)
 }
 
 object Yaml {
@@ -156,7 +156,7 @@ private object YamlS {
       case _ => safely(YScalar(a.toString))
     }
 
-    def parseMap(map: Map[Any, Any]): Option[Yaml] =
+    def parseMap(map: Map[_, _]): Option[Yaml] =
       map.toList.map(kv => for {
         k <- parseDoc(kv._1)
         v <- parseDoc(kv._2)
@@ -187,7 +187,7 @@ private object YamlS {
     withStream = _.foldLeft("")((s, y) => s + y.print + "\n...\n")
   )
 
-  def prettyPrintYaml(y: Yaml): String = {
+  def prettyPrintYaml(spaces: Int, y: Yaml): String = {
 
     //def makeLine(indentLevel: Int, contents: String): String =
     //  (1 to indentLevel).foldLeft("")((acc, _) => acc + "  ") + contents + "\n"

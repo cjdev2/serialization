@@ -18,7 +18,7 @@ object Java {
     * @param record An object that is a member of `SpecificRecord`
     * @return Avro-compliant byte-array representation
     */
-  def serialize(record: SpecificRecord) : Array[Byte] =
+  def serializeAvro(record: SpecificRecord) : Array[Byte] =
     SerializableSpecificRecord.serialize(record)
 
   /**
@@ -43,10 +43,10 @@ object Java {
     * @tparam T The Avro-generated type that the schema represents.
     * @return An `Optional` of your Avro-generated type.
     */
-  def deserialize[T >: Null <: SpecificRecord](
-                                                schema: Schema,
-                                                bytes: Array[Byte]
-                                              ): Optional[T] =
+  def deserializeAvro[T >: Null <: SpecificRecord](
+                                                    schema: Schema,
+                                                    bytes: Array[Byte]
+                                                  ): Optional[T] =
     new AvroDeserializable[T](schema)
       .deserialize(bytes)
       .fold(Optional.empty[T])(t => Optional.of[T](t))
