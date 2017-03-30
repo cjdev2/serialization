@@ -2,11 +2,7 @@ package com.cj.serialization
 
 import org.apache.avro.Schema
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
-import org.apache.avro.specific.{
-  SpecificDatumReader,
-  SpecificDatumWriter,
-  SpecificRecord
-}
+import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
 
 package object avro {
 
@@ -21,11 +17,19 @@ package object avro {
     SerializableSpecificRecord.serialize(record)
 
   /**
-    * This instance of [[Serializable]]`[SpecificRecord]`
-    * is sufficient to serialize any child class of
-    * `SpecificRecord`. Simply import this package
-    * and the parent package into your source and call
-    * [[serialize]] on your avro objects.
+    * This instance of [[Serializable]]`[SpecificRecord]` is sufficient
+    * for serializing any child of `SpecificRecord`, i.e. serialization
+    * of Avro-generated classes should Just Work™.
+    *
+    * Usage:
+    * {{{
+    *   import com.cj.serialization.serialize
+    *   import com.cj.serialization.avro.SerializableSpecificRecord
+    *   import your.awesome.avro.record.Awesome
+    *
+    *   val awesome: Awesome = ...
+    *   val bytes: Array[Byte] = serialize(awesome)
+    * }}}
     */
   implicit object SerializableSpecificRecord
     extends Serializable[SpecificRecord] {
@@ -46,7 +50,7 @@ package object avro {
   /**
     * Attempt to deserialize the provided `bytes` using the provided `schema`.
     * Creates a new instance of `AvroDeserializable` on each call, which is
-    * probably fine. If you're worried about performance, use `AvroDeserializer`
+    * probably fine. If you're worried about performance, use `AvroDeserializable`
     *
     * @param bytes  Bytes that you'd like to try to parse.
     * @param schema The schema against which you'd like to parse your bytes.
@@ -60,20 +64,23 @@ package object avro {
     new AvroDeserializable[T](schema).deserialize(bytes)
 
   /**
-    * We need a separate instance of
-    * [[Deserializable]]`[Bar]` for each child `Bar` of
-    * `SpecificRecord`, and we need to explicitly
-    * supply the `Schema` of `Bar` as a constructor argument.
+    * Create a [[Deserializable]]`[T]` instance for an avro-generated class `T`.
     *
-    * In your source, invoke as
+    * Usage:
     * {{{
-    *   implicit object Foo extends AvroDeserializable[Bar](Bar.getClassSchema)
-    * }}}
-    * to put a `Deserializable[Bar]` into scope, then just call [[deserialize]]
-    * on your bytes thereafter.
+    *   import com.cj.serialization.deserialize
+    *   import com.cj.serialization.avro.AvroDeserializable
+    *   import your.awesome.avro.record.Awesome
     *
-    * @param schema The `Schema` of `T`, typically `T.getClassSchema`
-    * @tparam T A child class of `SpecificRecord`
+    *   implicit object DeserializableAwesome
+    *     extends AvroDeserializable[Awesome](Awesome.getClassSchema)
+    *
+    *   val bytes: Array[Byte] = ...
+    *   val optAwesome: Option[Awesome] = deserialize(bytes)
+    * }}}
+    *
+    * @param schema The avro-generated schema for `T` (usually `T.getClassSchema`)
+    * @tparam T The avro-generated class you'd like to be able to deserialize
     */
   class AvroDeserializable[T >: Null <: SpecificRecord](schema: Schema)
     extends Deserializable[T] {

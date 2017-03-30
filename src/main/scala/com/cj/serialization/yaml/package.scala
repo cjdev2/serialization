@@ -8,7 +8,7 @@ package object yaml {
     def fromYaml(yaml: Yaml): Option[T]
 
     final def toYamlString(t: T): String =  toYaml(t).print
-    final def toPrettyYamlString(t: T): String = toYaml(t).prettyPrint
+    final def toPrettyYamlString(t: T): String = toYaml(t).prettyPrint(2)
 
     final def fromYamlString(string: String): Option[T] =
       Yaml.parse(string).flatMap(fromYaml)
@@ -48,13 +48,13 @@ package object yaml {
   }
 
   implicit object YamlCodecLong extends YamlCodec[Long] {
-    def toYaml(t: Long): Yaml = Yaml.int(t)
-    def fromYaml(yaml: Yaml): Option[Long] = yaml.int
+    def toYaml(t: Long): Yaml = Yaml.long(t)
+    def fromYaml(yaml: Yaml): Option[Long] = yaml.long
   }
 
   implicit object YamlCodecDouble extends YamlCodec[Double] {
-    def toYaml(t: Double): Yaml = Yaml.float(t)
-    def fromYaml(yaml: Yaml): Option[Double] = yaml.float
+    def toYaml(t: Double): Yaml = Yaml.double(t)
+    def fromYaml(yaml: Yaml): Option[Double] = yaml.double
   }
 
   implicit object YamlCodecBoolean extends YamlCodec[Boolean] {
@@ -70,10 +70,10 @@ package object yaml {
       import scalaz._, Scalaz._
 
       def toYaml(t: List[T]): Yaml =
-        Yaml.seq(t.map(ev.toYaml))
+        Yaml.array(t.map(ev.toYaml))
 
       def fromYaml(yaml: Yaml): Option[List[T]] =
-        yaml.asList.flatMap(_.map(ev.fromYaml).sequence)
+        yaml.array.flatMap(_.map(ev.fromYaml).sequence)
     }
 
   implicit def yamlCodecMap[K, V](
@@ -85,10 +85,10 @@ package object yaml {
       import scalaz._, Scalaz._
 
       def toYaml(t: Map[K, V]): Yaml =
-        Yaml.map(t.map(kv => (ev1.toYaml(kv._1), ev2.toYaml(kv._2))))
+        Yaml.assoc(t.map(kv => (ev1.toYaml(kv._1), ev2.toYaml(kv._2))))
 
       def fromYaml(yaml: Yaml): Option[Map[K, V]] =
-        yaml.asMap.flatMap(
+        yaml.assoc.flatMap(
           _.toList.map(kv => for {
             k <- ev1.fromYaml(kv._1)
             v <- ev2.fromYaml(kv._2)
@@ -107,6 +107,6 @@ package object yaml {
         Yaml.stream(t.map(ev.toYaml))
 
       def fromYaml(yaml: Yaml): Option[Stream[T]] =
-        yaml.asStream.flatMap(_.map(ev.fromYaml).sequence)
+        yaml.stream.flatMap(_.map(ev.fromYaml).sequence)
     }
 }

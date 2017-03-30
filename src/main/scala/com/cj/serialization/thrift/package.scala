@@ -13,9 +13,9 @@ package object thrift {
     *
     * Usage:
     * {{{
-    *   import com.cj.serialization._
-    *   import com.cj.serialization.thrift._
-    *   import your.awesome.thriftStruct.Awesome
+    *   import com.cj.serialization.serialize
+    *   import com.cj.serialization.thrift.SerializableThriftStruct
+    *   import your.awesome.thrift.struct.Awesome
     *
     *   val awesome: Awesome = ...
     *   val bytes: Array[Byte] = serialize(awesome)
@@ -31,12 +31,12 @@ package object thrift {
   }
 
   /**
-    * Create a [[Deserializable]]`[T]` for a scrooge-generated class `T`.
+    * Create a [[Deserializable]]`[T]` instance for a scrooge-generated class `T`.
     *
     * Usage:
     * {{{
-    *   import com.cj.serialization._
-    *   import com.cj.serialization.thrift._
+    *   import com.cj.serialization.deserialize
+    *   import com.cj.serialization.thrift.ThriftDeserializer
     *   import your.awesome.thriftStruct.Awesome
     *
     *   implicit object DeserializableAwesome
