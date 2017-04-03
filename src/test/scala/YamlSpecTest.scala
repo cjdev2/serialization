@@ -550,6 +550,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     val actual: String = yaml.print
 
     // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
     actual should be(expected)
   }
 
@@ -567,6 +569,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     val actual: String = yaml.print
 
     // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
     actual should be(expected)
   }
 
@@ -596,6 +600,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     val actual: String = yaml.print
 
     // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
     actual should be(expected)
   }
 
@@ -615,6 +621,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     val actual: String = yaml.print
 
     // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
     actual should be(expected)
   }
 
@@ -638,6 +646,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     val actual: String = yaml.pretty
 
     // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
     actual should be(expected)
   }
 
@@ -659,6 +669,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     val actual: String = yaml.pretty
 
     // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
     actual should be(expected)
   }
 
@@ -760,6 +772,173 @@ class YamlSpecTest extends FlatSpec with Matchers {
 
     // when
     val actual: String = yaml.pretty
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
+
+  it should "correctly print yaml maps with non-string keys" in {
+    // given
+    val yaml: Yaml = Yaml.assoc(Map(
+      Yaml.array(List(
+        Yaml.string("foo"),
+        Yaml.string("bar")
+      )) -> Yaml.string("baz")
+    ))
+
+    val expected: String =
+      """?
+        |  - foo
+        |  - bar
+        |: baz
+        |""".stripMargin
+
+    // when
+    val actual: String = yaml.pretty
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
+
+  behavior of "Yaml.printJson"
+
+  it should "correctly print simple yaml sequences" in {
+    // given
+    val yaml: Yaml = Yaml.array(List(
+      Yaml.string("Mark McGwire"),
+      Yaml.string("Sammy Sosa"),
+      Yaml.string("Ken Griffey")
+    ))
+
+    val expected: Option[String] =
+      Some("""["Mark McGwire", "Sammy Sosa", "Ken Griffey"]""")
+
+    // when
+    val actual: Option[String] = yaml.printJson
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
+
+  it should "correctly print simple yaml mappings" in {
+    // given
+    val yaml: Yaml = Yaml.assoc(Map(
+      Yaml.string("hr") -> Yaml.long(65),
+      Yaml.string("avg") -> Yaml.double(0.278),
+      Yaml.string("rbi") -> Yaml.long(147)
+    ))
+
+    val expected: Option[String] =
+      Some("""{"hr": 65, "avg": 0.278, "rbi": 147}""")
+
+    // when
+    val actual: Option[String] = yaml.printJson
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
+
+  it should "correctly print mapping scalars to sequences" in {
+    // given
+    val expected: Option[String] =
+      Some("""{"american": ["Boston Red Sox", "Detroit Tigers", "New York Yankees"], "national": ["New York Mets", "Chicago Cubs", "Atlanta Braves"]}""")
+
+    val yaml: Yaml = Yaml.assoc(Map(
+      Yaml.string("american") -> Yaml.array(List(
+        Yaml.string("Boston Red Sox"),
+        Yaml.string("Detroit Tigers"),
+        Yaml.string("New York Yankees")
+      )),
+      Yaml.string("national") -> Yaml.array(List(
+        Yaml.string("New York Mets"),
+        Yaml.string("Chicago Cubs"),
+        Yaml.string("Atlanta Braves")
+      ))
+    ))
+
+    // when
+    val actual: Option[String] = yaml.printJson
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
+
+  it should "correctly print sequences of mappings" in {
+    // given
+    val expected: Option[String] =
+      Some("""[{"name": "Mark McGwire", "hr": 65, "avg": 0.278}, {"name": "Sammy Sosa", "hr": 63, "avg": 0.288}]""")
+
+    val yaml: Yaml = Yaml.array(List(
+      Yaml.assoc(Map(
+        Yaml.string("name") -> Yaml.string("Mark McGwire"),
+        Yaml.string("hr") -> Yaml.long(65),
+        Yaml.string("avg") -> Yaml.double(0.278)
+      )),
+      Yaml.assoc(Map(
+        Yaml.string("name") -> Yaml.string("Sammy Sosa"),
+        Yaml.string("hr") -> Yaml.long(63),
+        Yaml.string("avg") -> Yaml.double(0.288)
+      ))
+    ))
+
+    // when
+    val actual: Option[String] = yaml.printJson
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
+
+  it should "return None for simple yaml streams" in {
+    // given
+    val yaml: Yaml = Yaml.stream(Stream(
+      Yaml.assoc(Map(
+        Yaml.string("time") -> Yaml.string("20:03:20"),
+        Yaml.string("player") -> Yaml.string("Sammy Sosa"),
+        Yaml.string("action") -> Yaml.string("strike (miss)")
+      )),
+      Yaml.assoc(Map(
+        Yaml.string("time") -> Yaml.string("20:03:47"),
+        Yaml.string("player") -> Yaml.string("Sammy Sosa"),
+        Yaml.string("action") -> Yaml.string("grand slam")
+      ))
+    ))
+
+    val expected: Option[String] = None
+
+    // when
+    val actual: Option[String] = yaml.printJson
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
+
+  it should "return None for yaml maps with non-string keys" in {
+    // given
+    val yaml: Yaml = Yaml.assoc(Map(
+      Yaml.array(List(
+        Yaml.string("foo"),
+        Yaml.string("bar")
+      )) -> Yaml.string("baz")
+    ))
+
+    val expected: Option[String] = None
+
+    // when
+    val actual: Option[String] = yaml.printJson
 
     // then
     println(s"Expected\n--------\n$expected\n")

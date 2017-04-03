@@ -34,6 +34,11 @@ sealed abstract class Yaml extends Product with Serializable {
     case _ => None
   }
 
+  def scalar: Option[String] = this match {
+    case YScalar(raw) => safely(raw)
+    case _ => None
+  }
+
   def assoc: Option[Map[Yaml, Yaml]] = this match {
     case YMap(map) => safely(map)
     case _ => None
@@ -96,6 +101,9 @@ sealed abstract class Yaml extends Product with Serializable {
   def pretty: String = prettyPrint(2)
 
   def prettyPrint(spaces: Int): String = prettyPrintYaml(spaces, this)
+
+  // returns None if the string is not well-formed JSON
+  def printJson: Option[String] = printJsonYaml(this)
 }
 
 object Yaml {
@@ -112,6 +120,7 @@ object Yaml {
   def long(n: Long): Yaml = YScalar(n.toString)
   def double(x: Double): Yaml = YScalar(x.toString)
   def string(s: String): Yaml = YScalar(s)
+  def scalar(s: String): Yaml = YScalar(s)
   def array(seq: List[Yaml]): Yaml = YSeq(seq)
   def assoc(map: Map[Yaml, Yaml]): Yaml = YMap(map)
   def stream(stream: Stream[Yaml]): Yaml = YStream(stream)
@@ -249,13 +258,23 @@ object Yaml {
             case v@YScalar(_) => indent + "- " + v.pretty + "\n"
             case v => "-\n" + helper(indent + tab, v)
           }).mkString,
-          withMap = assoc => assoc.map({
-            case (k, v@YScalar(_)) => indent + k.pretty + ": " + v.pretty + "\n"
-            case (k, v) => indent + k.pretty + ":\n" + helper(indent + tab, v)
-          }).mkString,
+          withMap = assoc => assoc.map(pair => printPair(indent, pair)).mkString,
           withStream = stream =>
             stream.foldLeft("")((s, y) => s + helper(indent, y) + "...\n")
         )
+
+      def printPair(indent: String, pair: (Yaml, Yaml)): String = pair match {
+        case (k, v) => (k.scalar, v.scalar) match {
+          case (None, None) => // neither are scalars
+            indent + "?\n" + helper(indent + tab, k) + ":\n" + helper(indent + tab, v)
+          case (None, Some(_)) => // v is a scalar, k is not
+            indent + "?\n" + helper(indent + tab, k) + ": " + v.pretty + "\n"
+          case (Some(_), None) => // k is a scalar, v is not
+            indent + k.pretty + ":\n" + helper(indent + tab, v)
+          case (Some(_), Some(_)) => // both are scalars
+            indent + k.pretty + ": " + v.pretty + "\n"
+        }
+      }
 
       helper("", y)
     }
@@ -287,6 +306,28 @@ object Yaml {
         case _ => if (forceEscapes) escape(raw) else escapeIf(raw)
       }
     }
+
+    def printJsonYaml(yaml: Yaml): Option[String] = yaml.fold(
+      withScalar = _ =>
+        safely(yaml.print),
+      withSeq = _ =>
+        safely(yaml.print),
+      withMap = {
+        import scalaz._, Scalaz._
+        def f(kv: (Yaml, Yaml)): Option[String] = kv._1 match {
+          case y@YScalar(_) =>
+            safely(y.print + ": " + kv._2.print)
+          case y =>
+            None
+        }
+        assoc =>
+          assoc.toList.map(f).sequence.map(
+            "{" + _.mkString(", ") + "}"
+          )
+      },
+      withStream = stream =>
+        None
+    )
 
     def matchNull(s: String): Boolean = s match {
       case "~" => true
