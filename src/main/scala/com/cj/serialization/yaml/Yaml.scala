@@ -224,12 +224,12 @@ object Yaml {
     }
 
     def printYaml(yaml: Yaml): String = yaml.fold(
-      withScalar = printScalar(forceEscapes = true),
+      withScalar = scalar => printScalar(forceEscapes = true, raw = scalar),
       withSeq = "[" + _.map(_.print).mkString(", ") + "]",
       withMap = {
         def f(kv: (Yaml, Yaml)): String = kv._1 match {
-          case YScalar(raw) =>
-            printScalar(forceEscapes = true)(raw) + ": " + kv._2.print
+          case y@YScalar(_) =>
+            y.print + ": " + kv._2.print
           case y => "? " + y.print + ": " + kv._2.print
         }
         "{" + _.map(f).mkString(", ") + "}"
