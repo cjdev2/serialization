@@ -244,7 +244,7 @@ object Yaml {
       def helper(indent: String, rest: Yaml): String =
         rest.fold(
           withScalar = scalar =>
-            printScalar(forceEscapes = false)(scalar),
+            printScalar(forceEscapes = false, raw = scalar),
           withSeq = seq => seq.map({
             case v@YScalar(_) => indent + "- " + v.pretty + "\n"
             case v => "-\n" + helper(indent + tab, v)
@@ -260,7 +260,7 @@ object Yaml {
       helper("", y)
     }
 
-    def printScalar(forceEscapes: Boolean): String => String = {
+    def printScalar(forceEscapes: Boolean, raw: String): String = {
 
       def escapeIf(raw: String): String = {
         val s = escape(raw)
@@ -278,13 +278,13 @@ object Yaml {
       def isIntegral: String => Boolean = raw =>
         safely(raw.toLong.toString.toLong == raw.toLong).fold(false)(identity)
 
-      {
-        case raw if matchNull(raw) => "null"
-        case raw if matchTrue(raw) => "true"
-        case raw if matchFalse(raw) => "false"
-        case raw if isIntegral(raw) => raw
-        case raw if isFloating(raw) => raw
-        case raw => if (forceEscapes) escape(raw) else escapeIf(raw)
+      raw match {
+        case _ if matchNull(raw) => "null"
+        case _ if matchTrue(raw) => "true"
+        case _ if matchFalse(raw) => "false"
+        case _ if isIntegral(raw) => raw
+        case _ if isFloating(raw) => raw
+        case _ => if (forceEscapes) escape(raw) else escapeIf(raw)
       }
     }
 
