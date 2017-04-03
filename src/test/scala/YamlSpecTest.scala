@@ -731,4 +731,39 @@ class YamlSpecTest extends FlatSpec with Matchers {
     println(s"Actual\n------\n$actual\n")
     actual should be(expected)
   }
+
+  it should "correctly print simple yaml streams" in {
+    // given
+    val yaml: Yaml = Yaml.stream(Stream(
+      Yaml.assoc(Map(
+        Yaml.string("time") -> Yaml.string("20:03:20"),
+        Yaml.string("player") -> Yaml.string("Sammy Sosa"),
+        Yaml.string("action") -> Yaml.string("strike (miss)")
+      )),
+      Yaml.assoc(Map(
+        Yaml.string("time") -> Yaml.string("20:03:47"),
+        Yaml.string("player") -> Yaml.string("Sammy Sosa"),
+        Yaml.string("action") -> Yaml.string("grand slam")
+      ))
+    ))
+
+    val expected: String =
+      """time: 20:03:20
+        |player: Sammy Sosa
+        |action: strike (miss)
+        |...
+        |time: 20:03:47
+        |player: Sammy Sosa
+        |action: grand slam
+        |...
+        |""".stripMargin
+
+    // when
+    val actual: String = yaml.pretty
+
+    // then
+    println(s"Expected\n--------\n$expected\n")
+    println(s"Actual\n------\n$actual\n")
+    actual should be(expected)
+  }
 }

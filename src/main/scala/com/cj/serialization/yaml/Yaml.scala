@@ -254,36 +254,39 @@ object Yaml {
             case (k, v) => indent + k.pretty + ":\n" + helper(indent + tab, v)
           }).mkString,
           withStream = stream =>
-            stream.foldLeft("")((s, y) => s + helper(indent + tab, y) + "\n...\n")
+            stream.foldLeft("")((s, y) => s + helper(indent, y) + "...\n")
         )
 
       helper("", y)
     }
 
-    def escapeIf(raw: String): String = {
-      val s = escape(raw)
-      if (s.contains("\\")) s else raw
-    }
-
-    def escape(raw: String): String = {
-      import scala.reflect.runtime.universe._
-      Literal(Constant(raw)).toString
-    }
-
     def printScalar(forceEscapes: Boolean): String => String = {
-      case raw if matchNull(raw) => "null"
-      case raw if matchTrue(raw) => "true"
-      case raw if matchFalse(raw) => "false"
-      case raw if isIntegral(raw) => raw
-      case raw if isFloating(raw) => raw
-      case raw => if (forceEscapes) escape(raw) else escapeIf(raw)
+
+      def escapeIf(raw: String): String = {
+        val s = escape(raw)
+        if (s.contains("\\")) s else raw
+      }
+
+      def escape(raw: String): String = {
+        import scala.reflect.runtime.universe._
+        Literal(Constant(raw)).toString
+      }
+
+      def isFloating: String => Boolean = raw =>
+        safely(raw.toDouble.toString.toDouble == raw.toDouble).fold(false)(identity)
+
+      def isIntegral: String => Boolean = raw =>
+        safely(raw.toLong.toString.toLong == raw.toLong).fold(false)(identity)
+
+      {
+        case raw if matchNull(raw) => "null"
+        case raw if matchTrue(raw) => "true"
+        case raw if matchFalse(raw) => "false"
+        case raw if isIntegral(raw) => raw
+        case raw if isFloating(raw) => raw
+        case raw => if (forceEscapes) escape(raw) else escapeIf(raw)
+      }
     }
-
-    def isFloating: String => Boolean = raw =>
-      safely(raw.toDouble.toString.toDouble == raw.toDouble).fold(false)(identity)
-
-    def isIntegral: String => Boolean = raw =>
-      safely(raw.toLong.toString.toLong == raw.toLong).fold(false)(identity)
 
     def matchNull(s: String): Boolean = s match {
       case "~" => true
