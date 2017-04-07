@@ -1,5 +1,8 @@
 package com.cj.serialization
 
+import argonaut.{JsonLong, JsonNumber}
+import com.cj.serialization.json.Json
+
 package object yaml {
 
   trait YamlCodec[T] extends Serializable[T] with Deserializable[T] {
@@ -40,6 +43,66 @@ package object yaml {
   implicit object YamlCodecYaml extends YamlCodec[Yaml] {
     def toYaml(t: Yaml): Yaml = t
     def fromYaml(yaml: Yaml): Option[Yaml] = Option(yaml)
+  }
+
+  implicit object YamlCodecJson extends YamlCodec[Json] {
+
+    // This transformation is lossy
+    // e.g., imagine you have json `j = {"foo": "0"}`
+    // then toYaml(j) = foo: 0
+    // and then fromYaml(toYaml(j)) = Some({"foo": 0}) =/ Some(j)
+    // TODO: Consider implementing a YAML ADT that allows
+    // TODO: for a lossless transformation
+
+    import argonaut.Json
+    import scalaz._, Scalaz._
+
+    def toYaml(t: Json): Yaml =
+      t.fold(
+        jsonNull = Yaml.scalar("~"),
+        jsonBool = p => Yaml.scalar(p.toString),
+        jsonNumber = n => Yaml.scalar(n.toString),
+        jsonString = s => Yaml.scalar(s),
+        jsonArray = js => Yaml.array(js.map(toYaml)),
+        jsonObject = obj => {
+          Yaml.assoc(obj.toList.map({
+            case (key, value) =>
+              (Yaml.scalar(key), toYaml(value))
+          }).toMap)
+        }
+      )
+
+    def fromYaml(yaml: Yaml): Option[Json] =
+      yaml.fold(
+        withScalar = {
+          case _ if yaml.nul.isDefined =>
+            Some(Json.jNull)
+          case _ if yaml.nan.isDefined =>
+            Some(Json.jString("NaN"))
+          case _ if yaml.inf.isDefined =>
+            Some(Json.jString("Infinity"))
+          case _ if yaml.neginf.isDefined =>
+            Some(Json.jString("-Infinity"))
+          case _ if yaml.bool.isDefined =>
+            Some(Json.jBool(yaml.bool.get))
+          case _ if yaml.long.isDefined =>
+            Some(Json.jNumber(JsonLong(yaml.long.get)))
+          case _ if yaml.double.isDefined =>
+            JsonNumber.fromString(yaml.double.get.toString).map(Json.jNumber)
+          case _ if yaml.string.isDefined =>
+            Some(Json.jString(yaml.string.get))
+          case _ =>
+            None
+        },
+        withSeq = array => array.map(fromYaml).sequence.map(Json.jArray),
+        withMap = assoc => {
+          assoc.map({ case (ykey, yval) => ykey.scalar match {
+            case None => None
+            case Some(raw) => (raw, fromYaml(yval)).sequence
+          }}).toList.sequence.map(Json.jObjectAssocList)
+        },
+        withStream = _ => None
+      )
   }
 
   implicit object YamlCodecString extends YamlCodec[String] {

@@ -6,7 +6,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
   import argonaut.{Argonaut, Json}
   import com.cj.serialization._
   import com.cj.serialization.json._
-  import TestTools._
+  import Fixtures._
 
   "JsonDemo" should "not be out of date" in {
     JsonDemo.main(args = Array[String]())
@@ -187,11 +187,8 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     )
 
     // when: JsonSerializerFromCodec creates a JsonSerializer[Pair]
-    implicit object PersonSerializer extends JsonSerializerFromCodec[Person](
-      Argonaut.casecodec4
-        (Person.apply, Person.unapply)
-        ("name", "age", "things", "mother")
-    )
+    implicit val personCodec: CodecJson[Person] =
+      Argonaut.casecodec4(Person.apply, Person.unapply)("name", "age", "things", "mother")
 
     // then
     personTestCases.foreach(leftInverseTestCase[Person])
@@ -216,7 +213,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     )
 
     // when: JsonSerializerFromCodec creates a JsonSerializer[Pair]
-    implicit object PairSerializer extends JsonSerializerFromCodec[Pair]({
+    implicit val pairCodec: CodecJson[Pair] = {
 
       implicit def keyCodec =
         Argonaut.casecodec1(Key.apply, Key.unapply)("get")
@@ -225,7 +222,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
         Argonaut.casecodec1(Value.apply, Value.unapply)("get")
 
       Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
-    })
+    }
 
     // then
     pairTestCases.foreach(leftInverseTestCase[Pair])
@@ -255,11 +252,10 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
                         postcode: Int
                       )
 
-    implicit object AddressS extends JsonSerializerFromCodec[Address](
+    implicit val addressCodec: argonaut.CodecJson[Address] =
       argonaut.Argonaut.casecodec3(Address.apply, Address.unapply)(
         "street", "number", "post_code"
       )
-    )
 
     case class Person(
                        name: String,
@@ -268,11 +264,10 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
                        greeting: Option[String]
                      )
 
-    implicit object PersonS extends JsonSerializerFromCodec[Person](
+    implicit val personCodec: CodecJson[Person] =
       argonaut.Argonaut.casecodec4(Person.apply, Person.unapply)(
         "name", "age", "address", "greeting"
       )
-    )
 
     // then: you can deserialize and work with JSON arrays of those
     // structs without creating another JsonSerializer specifically
@@ -311,6 +306,48 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     )
   }
 
+  it should "satisfy the contract for general arguments" in {
+    // given
+    implicit val personCodec: CodecJson[Person] =
+      Argonaut.casecodec4(Person.apply, Person.unapply)(
+        "name", "age", "things", "mother"
+      )
+
+    forAll { (n: String, a: Int, ts: List[String], mo: Option[String]) =>
+
+      val person = Person(n, a, ts, mo)
+
+      // when/then
+      deserialize[Person](serialize(person)) should be(Some(person))
+    }
+  }
+
+  it should "be thread safe" in {
+    // given
+    implicit val personCodec: CodecJson[Person] =
+      Argonaut.casecodec4(Person.apply, Person.unapply)(
+        "name", "age", "things", "mother"
+      )
+
+    forAll { (ps: List[(String, Int, List[String], Option[String])]) =>
+
+      whenever (ps.nonEmpty) {
+
+        val people = ps.map(Person.tupled)
+
+        // when
+        val strictResult = people.map(serialize[Person])
+        val concurrentResult = people.par.map(serialize[Person])
+
+        // then
+        strictResult
+          .zip(concurrentResult)
+          .map({ case (z1, z2) => z1 sameElements z2 })
+          .reduce(_ && _) should be(true)
+      }
+    }
+  }
+
   behavior of "JsonSerializerFromConverters"
 
   it should "satisfy its contract" in {
@@ -342,50 +379,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Pair])
   }
 
-  // TODO: Make this a proper test.
-  "something" should "do some property checks" in {
-
-    implicit object PersonS extends JsonSerializerFromCodec[Person](
-      Argonaut.casecodec4(Person.apply, Person.unapply)(
-        "name", "age", "things", "mother"
-      )
-    )
-
-    forAll { (n: String, a: Int, ts: List[String], mo: Option[String]) =>
-
-      val person = Person(n, a, ts, mo)
-
-      deserialize[Person](serialize(person)) should be(Some(person))
-    }
-  }
-
-  // TODO: Make this a proper test.
-  "did we ever check if Json serialization" should "be concurrent?" in {
-
-    implicit object PersonS extends JsonSerializerFromCodec[Person](
-      Argonaut.casecodec4(Person.apply, Person.unapply)(
-        "name", "age", "things", "mother"
-      )
-    )
-
-    forAll { (ps: List[(String, Int, List[String], Option[String])]) =>
-
-      whenever (ps.nonEmpty) {
-
-        val people = ps.map(Person.tupled)
-
-        val strictResult = people.map(serialize[Person])
-        val concurrentResult = people.par.map(serialize[Person])
-
-        strictResult
-          .zip(concurrentResult)
-          .map({ case (z1, z2) => z1 sameElements z2 })
-          .reduce(_ && _) should be(true)
-      }
-    }
-  }
-
-  object TestTools {
+  object Fixtures {
 
     case class Key(get: Int)
     case class Value(get: String)

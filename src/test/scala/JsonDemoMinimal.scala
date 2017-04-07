@@ -11,22 +11,27 @@ object JsonDemoMinimal extends App {
   // underscore, "_", in your import statements and to declare your serializers
   // explicit instead of implicit. This short demo illustrates those practices.
 
-  import com.cj.serialization.json.JsonSerializerFromCodec
+  import com.cj.serialization.json.{CodecJson, JsonSerializer, jsonSerializerFromCodec}
   import com.cj.serialization.thrift.SerializableThriftStruct
   import local.test.serialization.thrift.scala.TestRecord
 
   val ThriftS = SerializableThriftStruct
 
-  object TestRecordJS extends JsonSerializerFromCodec[TestRecord](
+  // Make a codec. The easiest way is to use Argonaut's "caseCodec" functions
+  val testRecordCodec: CodecJson[TestRecord] =
     argonaut.Argonaut.casecodec2[String, Long, TestRecord](
       TestRecord.apply,
       testRecord => TestRecord.unapply(testRecord).map(p => (p._1, p._2))
     )("foo", "bar")
-  )
 
+  // Make a JsonSerializer.
+  val testRecordJsonSerializer: JsonSerializer[TestRecord] =
+    jsonSerializerFromCodec(testRecordCodec)
+
+  // Use the serializer on your record
   val record = TestRecord("Tim Drake", 19)
   assert(
-    TestRecordJS.toPrettyJsonString(record) ==
+    testRecordJsonSerializer.toPrettyJsonString(record) ==
       """{
         |  "foo" : "Tim Drake",
         |  "bar" : 19
@@ -40,12 +45,12 @@ object JsonDemoMinimal extends App {
   val batmanString =
     """{"foo":"Batman","bar":38}"""
   assert(
-    TestRecordJS.fromJsonString(batmanString).contains(
+    testRecordJsonSerializer.fromJsonString(batmanString).contains(
       TestRecord("Batman", 38)
     )
   )
   assert(
-    TestRecordJS.fromJsonString(batmanString)
+    testRecordJsonSerializer.fromJsonString(batmanString)
       .map(ThriftS.serialize)
       .get.mkString(",")
     == "11,0,1,0,0,0,6,66,97,116,109,97,110,10,0,2,0,0,0,0,0,0,0,38,0,0,0,0,0,0,0,0"

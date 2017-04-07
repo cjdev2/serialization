@@ -184,7 +184,7 @@ package object json {
     *
     *   val fooCodec = Argonaut.casecodec2(Foo.apply, Foo.unapply)("bar", "baz")
     *
-    *   object FooS extends JsonSerializerFromCodec[Foo](fooCodec)
+    *   /* now convert `Foo`s back and forth with `Json`s as normal */
     * }}}
     *
     * @param codec a codec that argonaut will use when encoding/decoding `Json`
@@ -192,18 +192,14 @@ package object json {
     *           [[serialize]], [[toJson]], [[toJsonString]], and
     *           [[toPrettyJsonString]] prefix methods
     */
-  class JsonSerializerFromCodec[T](codec: CodecJson[T])
-    extends JsonSerializer[T]
-      with EncodeJson[T]
-      with DecodeJson[T] {
+  implicit def jsonSerializerFromCodec[T](
+                                           implicit codec: CodecJson[T]
+                                         ): JsonSerializer[T] =
+    new JsonSerializer[T] {
 
-    def toJson(t: T): Json = argonaut.Argonaut.ToJsonIdentity(t).asJson(codec)
-    def fromJson(json: Json): Option[T] = json.as[T](codec).toOption
-
-    def encode(a: T): Json = argonaut.Argonaut.ToJsonIdentity(a).asJson(codec)
-    def decode(c: argonaut.HCursor): argonaut.DecodeResult[T] = c.as[T](codec)
-    def getCodec: CodecJson[T] = codec
-  }
+      def toJson(t: T): Json = argonaut.Argonaut.ToJsonIdentity(t).asJson(codec)
+      def fromJson(json: Json): Option[T] = json.as[T](codec).toOption
+    }
 
   /**
     * Create a `JsonSerializer[T]` by supplying your own converter functions.
