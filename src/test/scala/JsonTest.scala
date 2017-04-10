@@ -348,7 +348,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     }
   }
 
-  behavior of "JsonSerializerFromConverters"
+  behavior of "JsonSerializer.apply"
 
   it should "satisfy its contract" in {
     // given
@@ -365,12 +365,9 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
       bytesPair2
     )
 
-    // when: JsonSerializerFromConverters creates a JsonSerializer[Pair]
-    implicit object PairSerializer
-      extends JsonSerializerFromConverters[Pair](
-        to = pairToJson,
-        from = jsonToPair
-      )
+    // when: JsonSerializer creates a JsonSerializer[Pair]
+    implicit val pairSerializer: JsonSerializer[Pair] =
+      JsonSerializer[Pair](to = pairToJson, from = jsonToPair)
 
     // then
     pairTestCases.foreach(leftInverseTestCase[Pair])

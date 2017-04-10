@@ -264,11 +264,11 @@ object JsonDemo extends App {
     }
   }
 
-  // Use your converters as inputs to `JsonSerializerFromConverters`.
+  // Use your converters as inputs to `JsonSerializer.apply`.
   // I usually prefer to inline to converters so as not to have them
   // in global scope (they are redundant with `fromJson` and `toJson`).
-  implicit object ADTSumJsonSerializer
-    extends JsonSerializerFromConverters[ADTSum](adtSumToJson, adtSumFromJson)
+  implicit val ADTSumJsonSerializer =
+    JsonSerializer[ADTSum](adtSumToJson, adtSumFromJson)
 
   // And everything works as expected.
   assert(
@@ -355,17 +355,17 @@ object JsonDemo extends App {
   // statement, sort-of). You would leave out the `implicit` keyword if you'd
   // like to have access to two or more alternate ways to serialize the same
   // class coexisting in scope.
-  object TerseClassyMapSerializer
-    extends JsonSerializerFromConverters[ClassyMap](
+  val terseClassyMapSerializer: JsonSerializer[ClassyMap] =
+    JsonSerializer[ClassyMap](
       // Provide a `ClassyMap => Json`.
-      classyMap => Json.jArray(
+      to = classyMap => Json.jArray(
         classyMap.pairs.map(pair => Json(
           "k" -> Json.jNumber(pair.key.get),
           "v" -> Json.jString(pair.value.get)
         ))
       ),
       // Provide a `Json => Option[ClassyMap]`.
-      json => for {
+      from = json => for {
         jsons <- json.array
         objs <- jsons.map(_.assoc).sequence // This is why we like scalaz.
         pairs <- objs.map(obj => for {
@@ -379,7 +379,7 @@ object JsonDemo extends App {
     )
 
   val mapBytes = serialize(map)
-  val mapBytesTerse = TerseClassyMapSerializer.serialize(map)
+  val mapBytesTerse = terseClassyMapSerializer.serialize(map)
   assert(
     // In UTF-8, `mapBytesTerse` is 19 bytes, and `mapBytes` is 51.
     mapBytesTerse.length < mapBytes.length
@@ -398,7 +398,7 @@ object JsonDemo extends App {
   )
   assert(
     // Terse JSON serializer:
-    TerseClassyMapSerializer.toJsonString(map) ==
+    terseClassyMapSerializer.toJsonString(map) ==
       """[{"k":5,"v":"foo"}]"""
   )
 

@@ -85,6 +85,29 @@ package object json {
     } yield t
   }
 
+  object JsonSerializer {
+
+    /**
+      * Create a `JsonSerializer[T]` by supplying your own converter functions.
+      * The functions supplied must satisfy the contract:
+      * {{{
+      *   from(to(t))                      == Some(t)
+      *   from(json).map(to).flatMap(from) == from(json)
+      * }}}
+      *
+      * @param to a function that converts `T` to `Json`
+      * @param from a function that attempts to convert `Json` to `T`
+      * @tparam T The class for which you would like implementations of the
+      *           [[serialize]], [[toJson]], [[toJsonString]], and
+      *           [[toPrettyJsonString]] prefix methods
+      */
+    def apply[T](to: T => Json, from: Json => Option[T]): JsonSerializer[T] =
+      new JsonSerializer[T] {
+        def toJson(t: T): Json = to(t)
+        def fromJson(json: Json): Option[T] = from(json)
+      }
+  }
+
   /**
     * Convert a value of `T` into a value of `Json`.
     *
@@ -200,27 +223,6 @@ package object json {
       def toJson(t: T): Json = argonaut.Argonaut.ToJsonIdentity(t).asJson(codec)
       def fromJson(json: Json): Option[T] = json.as[T](codec).toOption
     }
-
-  /**
-    * Create a `JsonSerializer[T]` by supplying your own converter functions.
-    * The functions supplied must satisfy the contract:
-    * {{{
-    *   from(to(t))                      == Some(t)
-    *   from(json).map(to).flatMap(from) == from(json)
-    * }}}
-    *
-    * @param to a function that converts `T` to `Json`
-    * @param from a function that attempts to convert `Json` to `T`
-    * @tparam T The class for which you would like implementations of the
-    *           [[serialize]], [[toJson]], [[toJsonString]], and
-    *           [[toPrettyJsonString]] prefix methods
-    */
-  class JsonSerializerFromConverters[T](to: T => Json, from: Json => Option[T])
-    extends JsonSerializer[T] {
-
-    def toJson(t: T): Json = to(t)
-    def fromJson(json: Json): Option[T] = from(json)
-  }
 
   /**
     * Convenience methods for manipulating `Json`.
