@@ -2,35 +2,8 @@ package com.cj.serialization
 
 package object json {
 
-  /**
-    * A type used to represent JSON abstract syntax trees in native Scala, with
-    * type-safe constructors and extractors.
-    */
-  type Json = argonaut.Json
-
-  /**
-    * A type used internally by Argonaut that encapsulates a strategy for
-    * decoding `Json` to `T`
-    *
-    * @tparam T The target type of the decoder.
-    */
-  type DecodeJson[T] = argonaut.DecodeJson[T]
-
-  /**
-    * A type used internally by Argonaut that encapsulates a strategy for
-    * encoding `T` to `Json`
-    *
-    * @tparam T The source type of the encoder.
-    */
-  type EncodeJson[T] = argonaut.EncodeJson[T]
-
-  /**
-    * A type used by Argonaut that encapsulate a strategy for encoding and
-    * decoding between `T` and `Json`.
-    *
-    * @tparam T The source/target type of the encoder/decoder.
-    */
-  type CodecJson[T] = argonaut.CodecJson[T]
+  import argonaut.{DecodeJson, DecodeResult, EncodeJson, HCursor, Json => AJson}
+  import scalaz._, Scalaz._
 
   /**
     * Encapsulates the data required to safely convert back and forth among a
@@ -40,19 +13,19 @@ package object json {
     * {{{
     *   fromJson(toJson(t))                   == Some(t)
     *
-    *   fromJsonString(toJsonString(t))       == Some(t)
+    *   parseJson(printJson(t))               == Some(t)
     *
-    *   fromJsonString(toPrettyJsonString(t)) == Some(t)
+    *   parseJson(prettyJson(t))              == Some(t)
     *
     *   deserialize(serialize(t))             == Some(t)
     *
     *   fromJson(json).map(toJson).flatMap(fromJson)
     *     == fromJson(json)
     *
-    *   fromJsonString(string).map(toJsonString).flatMap(fromJsonString)
+    *   parseJson(string).map(printJson).flatMap(parseJson)
     *     == fromJsonString(string)
     *
-    *   fromJsonString(string).map(toPrettyJsonString).flatMap(fromJsonString)
+    *   parseJson(string).map(prettyJson).flatMap(parseJson)
     *     == fromJsonString(string)
     *
     *   deserialize(bytes).map(serialize).flatMap(deserialize)
@@ -60,32 +33,82 @@ package object json {
     * }}}
     *
     * @tparam T The class for which you are implementing the [[serialize]],
-    *           [[toJson]], [[toJsonString]], and [[toPrettyJsonString]]
+    *           [[toJson]], [[printJson]], and [[prettyJson]]
     *           prefix methods
     */
-  trait JsonSerializer[T] extends Serializable[T] with Deserializable[T] {
+  trait JsonCodec[T] extends Serialize[T] with Deserialize[T] {
 
     def toJson(t: T): Json
-    def fromJson(json: Json): Option[T]
+    def fromJson(json: Json): Result[T]
 
-    final def toJsonString(t: T): String = toJson(t).nospaces
-    final def toPrettyJsonString(t: T): String = toJson(t).spaces2
+    final def printJson(t: T): String = toJson(t).print
+    final def prettyJson(t: T): String = toJson(t).pretty
 
-    final def fromJsonString(string: String): Option[T] = for {
-      json <- argonaut.Parse.parse(string).fold(_ => None, json => Option(json))
-      t <- fromJson(json)
-    } yield t
+    final def parseJson(string: String): Result[T] =
+      Json.parse(string).flatMap(fromJson)
 
     final def serialize(t: T): Array[Byte] =
-      implicitly[Serializable[String]].serialize(toJsonString(t))
+      implicitly[Serialize[String]].serialize(printJson(t))
 
-    final def deserialize(bytes: Array[Byte]): Option[T] = for {
-      string <- implicitly[Deserializable[String]].deserialize(bytes)
-      t <- fromJsonString(string)
+    final def deserialize(bytes: Array[Byte]): Result[T] = for {
+      string <- implicitly[Deserialize[String]].deserialize(bytes)
+      t <- parseJson(string)
     } yield t
   }
 
-  object JsonSerializer {
+  /**
+    * Convert a value of `T` into a value of `Json`.
+    *
+    * @param t a value of `t`
+    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
+    * @return a representation of `t` as a value of `Json`
+    */
+  def toJson[T: JsonCodec](t: T): Json =
+    implicitly[JsonCodec[T]].toJson(t)
+
+  /**
+    * Convert a value of `T` into a JSON string.
+    *
+    * @param t a value of `t`
+    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
+    * @return a representation of `t` as a JSON string
+    */
+  def printJson[T: JsonCodec](t: T): String =
+    implicitly[JsonCodec[T]].printJson(t)
+
+  /**
+    * Convert a value of `T` into a human-readable JSON string.
+    *
+    * @param t a value of `t`
+    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
+    * @return a representation of `t` as a human-readable JSON string
+    */
+  def prettyJson[T: JsonCodec](t: T): String =
+    implicitly[JsonCodec[T]].prettyJson(t)
+
+  /**
+    * Returns the encoded value of `T` from the supplied `Json` value, wrapped
+    * as an `Result[T]`, or fails gracefully, returning `None`.
+    *
+    * @param json any value of `Json`
+    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
+    * @return `Some(t)` if the argument was coherent, otherwise `None`
+    */
+  def fromJson[T: JsonCodec](json: Json): Result[T] =
+    implicitly[JsonCodec[T]].fromJson(json)
+
+  /**
+    * Returns the encoded value of `T` from the supplied `String`, wrapped
+    * as an `Result[T]`, or fails gracefully, returning `None`.
+    *
+    * @param string any string
+    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
+    * @return `Some(t)` if the argument was coherent, otherwise `None`
+    */
+  def parseJson[T: JsonCodec](string: String): Result[T] =
+    implicitly[JsonCodec[T]].parseJson(string)
+
+  object JsonCodec {
 
     /**
       * Create a `JsonSerializer[T]` by supplying your own converter functions.
@@ -98,245 +121,108 @@ package object json {
       * @param to a function that converts `T` to `Json`
       * @param from a function that attempts to convert `Json` to `T`
       * @tparam T The class for which you would like implementations of the
-      *           [[serialize]], [[toJson]], [[toJsonString]], and
-      *           [[toPrettyJsonString]] prefix methods
+      *           [[serialize]], [[toJson]], [[printJson]], and
+      *           [[prettyJson]] prefix methods
       */
-    def apply[T](to: T => Json, from: Json => Option[T]): JsonSerializer[T] =
-      new JsonSerializer[T] {
+    def apply[T](to: T => Json, from: Json => Result[T]): JsonCodec[T] =
+      new JsonCodec[T] {
         def toJson(t: T): Json = to(t)
-        def fromJson(json: Json): Option[T] = from(json)
+        def fromJson(json: Json): Result[T] = from(json)
       }
-  }
 
-  /**
-    * Convert a value of `T` into a value of `Json`.
-    *
-    * @param t a value of `t`
-    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
-    * @return a representation of `t` as a value of `Json`
-    */
-  def toJson[T: JsonSerializer](t: T): Json =
-    implicitly[JsonSerializer[T]].toJson(t)
+    /**
+      * Create a [[JsonCodec]][T] by supplying an `argonaut.CodecJson[T]`.
+      * The invocation is almost always boilerplate, consisting of routine
+      * wiring, as a `CodecJson[T]` can be generated for any case class by
+      * supplying the constructor, extractor, and names of the field.
+      *
+      * For example:
+      * {{{
+      *   case class Foo(bar: Int, baz: Char)
+      *
+      *   implicit val fooCodec = JsonCodec(
+      *     argonaut.Argonaut.casecodec2(Foo.apply, Foo.unapply)("bar", "baz")
+      *   )
+      *
+      *   /* now convert `Foo`s back and forth with [[Json]] as normal */
+      * }}}
+      *
+      * @param argoCodec a codec that argonaut will use when encoding/decoding [[Json]]
+      * @tparam T The class for which you would like implementations of the
+      *           [[serialize]], [[deserialize]], [[parseJson]], [[toJson]],
+      *           [[fromJson]], [[printJson]], and [[prettyJson]] prefix methods
+      */
+    def apply[T](argoCodec: argonaut.CodecJson[T]): JsonCodec[T] =
+      new JsonCodec[T] {
 
-  /**
-    * Convert a value of `T` into a JSON string.
-    *
-    * @param t a value of `t`
-    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
-    * @return a representation of `t` as a JSON string
-    */
-  def toJsonString[T: JsonSerializer](t: T): String =
-    implicitly[JsonSerializer[T]].toJsonString(t)
+        def toJson(t: T): Json =
+          JsonS.fromArgonaut(argonaut.Argonaut.ToJsonIdentity(t).asJson(argoCodec))
 
-  /**
-    * Convert a value of `T` into a human-readable JSON string.
-    *
-    * @param t a value of `t`
-    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
-    * @return a representation of `t` as a human-readable JSON string
-    */
-  def toPrettyJsonString[T: JsonSerializer](t: T): String =
-    implicitly[JsonSerializer[T]].toPrettyJsonString(t)
-
-  /**
-    * Returns the encoded value of `T` from the supplied `Json` value, wrapped
-    * as an `Option[T]`, or fails gracefully, returning `None`.
-    *
-    * @param json any value of `Json`
-    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
-    * @return `Some(t)` if the argument was coherent, otherwise `None`
-    */
-  def fromJson[T: JsonSerializer](json: Json): Option[T] =
-    implicitly[JsonSerializer[T]].fromJson(json)
-
-  /**
-    * Returns the encoded value of `T` from the supplied `String`, wrapped
-    * as an `Option[T]`, or fails gracefully, returning `None`.
-    *
-    * @param string any string
-    * @tparam T a type for which an implicit `JsonSerializer[T]` exists in scope
-    * @return `Some(t)` if the argument was coherent, otherwise `None`
-    */
-  def fromJsonString[T: JsonSerializer](string: String): Option[T] =
-    implicitly[JsonSerializer[T]].fromJsonString(string)
-
-  /**
-    * Implementation of [[JsonSerializer]] for `Json`
-    */
-  implicit object JsonSerializerJson extends JsonSerializer[Json] {
-    def toJson(t: Json): Json = t
-    def fromJson(json: Json): Option[Json] = Option(json)
-  }
-
-  /**
-    * Class implementing [[JsonSerializer]] for 'List[T]' whenever `T` has
-    * instances of `EncodeJson` and `DecodeJson` in implicit scope. No user
-    * invocation is necessary.
-    *
-    * @param encoderT An encoder for type T.
-    * @param decoderT A decoder for type T.
-    * @tparam T       A target/source type for the serializer.
-    * @return         A JSON serializer utilizing the implicit encoder/decoder.
-    */
-  implicit def jsonSerializerList[T](
-                                      implicit
-                                      encoderT : EncodeJson[T],
-                                      decoderT : DecodeJson[T]
-                                    ): JsonSerializer[List[T]] =
-    new JsonSerializer[List[T]] {
-
-      import scalaz._, Scalaz._
-
-      def toJson(ts: List[T]): Json =
-        argonaut.Json.jArray(ts.map(encoderT.encode))
-
-      def fromJson(json: Json): Option[List[T]] = {
-        json.array.flatMap(_.map(decoderT.decodeJson(_).toOption).sequence)
+        def fromJson(json: Json): Result[T] =
+          JsonS.toArgonaut(json).as[T](argoCodec).fold(
+            failure = (s, _) => Result.failure(s),
+            value = t => Result.safely(t)
+          )
       }
+
+    /**
+      * Implementation of [[JsonCodec]] for `Json`
+      */
+    implicit object JsonCodecJson extends JsonCodec[Json] {
+      def toJson(t: Json): Json = t
+      def fromJson(json: Json): Result[Json] = Result.safely(json)
     }
 
-  /**
-    * Create a `JsonSerializer[T]` by supplying a `CodecJson[T]`. The invocation
-    * is almost always boilerplate, consisting of routine wiring, as a
-    * `CodecJson[T]` can be generated for any case class by supplying the
-    * constructor, extractor, and names of the field.
-    *
-    * For example:
-    * {{{
-    *   case class Foo(bar: Int, baz: Char)
-    *
-    *   val fooCodec = Argonaut.casecodec2(Foo.apply, Foo.unapply)("bar", "baz")
-    *
-    *   /* now convert `Foo`s back and forth with `Json`s as normal */
-    * }}}
-    *
-    * @param codec a codec that argonaut will use when encoding/decoding `Json`
-    * @tparam T The class for which you would like implementations of the
-    *           [[serialize]], [[toJson]], [[toJsonString]], and
-    *           [[toPrettyJsonString]] prefix methods
-    */
-  implicit def jsonSerializerFromCodec[T](
-                                           implicit codec: CodecJson[T]
-                                         ): JsonSerializer[T] =
-    new JsonSerializer[T] {
-
-      def toJson(t: T): Json = argonaut.Argonaut.ToJsonIdentity(t).asJson(codec)
-      def fromJson(json: Json): Option[T] = json.as[T](codec).toOption
-    }
-
-  /**
-    * Convenience methods for manipulating `Json`.
-    */
-  implicit class JsonX(x: Json) {
-
     /**
-      * If 'this' is a JSON object,
-      * attempts to lookup the value at the provided key.
+      * Class implementing [[JsonCodec]] for 'List[T]' whenever `T` has
+      * instances of `EncodeJson` and `DecodeJson` in implicit scope. No user
+      * invocation is necessary.
+      *
+      * @param codec A JsonSerializer for the type `T`
+      * @tparam T       A target/source type for the serializer.
+      * @return         A JSON serializer utilizing the implicit encoder/decoder.
       */
-    def ~>(key: String): Option[Json] =
-      x.assoc.flatMap(_.toMap.get(key))
+    implicit def jsonCodecList[T](
+                                   implicit codec: JsonCodec[T]
+                                 ): JsonCodec[List[T]] =
+      new JsonCodec[List[T]] {
 
-    /**
-      * If 'this' is a JSON array,
-      * attempts to lookup the value at the provided index.
-      */
-    def ~>(n: Int): Option[Json] =
-      x.array.flatMap(_.lift(n))
+        def toJson(ts: List[T]): Json =
+          Json.array(ts.map(codec.toJson))
 
-    /**
-      * If 'this' is a JSON object,
-      * returns the object represented as a `Map`.
-      */
-    def asMap: Option[Map[String, Json]] =
-      x.assoc.map(_.toMap)
+        def fromJson(json: Json): Result[List[T]] =
+          json.array
+            .map(jArr => jArr.map(json => codec.fromJson(json)).sequence)
+            .getOrElse(Result.failure(s"Json was not an array: $json"))
+      }
 
-    /**
-      * If 'this' is a JSON array,
-      * returns the array represented as a `List`.
-      */
-    def asList: Option[List[Json]] =
-      x.array
-
-    /**
-      * If 'this' is the JSON 'null' literal,
-      * returns `Some({})`, otherwise returns `None`.
-      */
-    def nullLiteral: Option[Unit] =
-      x.isNull match {
-        case false => None
-        case true => Some({})
+    implicit def jsonCodecMap[T](
+                                  implicit codec: JsonCodec[T]
+                                ): JsonCodec[Map[String, T]] =
+      new JsonCodec[Map[String, T]] {
+        def toJson(t: Map[String, T]): Json = Json.assoc(t.mapValues(codec.toJson))
+        def fromJson(json: Json): Result[Map[String, T]] =
+          json.assoc
+            .map(jObj => jObj.mapValues(json => codec.fromJson(json)).sequence)
+            .getOrElse(Result.failure(s"Json was no an object: $json"))
       }
   }
 
-  /**
-    * Convenience methods for manipulating `Option[Json]`.
-    */
-  implicit class JsonOp(x: Option[Json]) {
+  implicit def encodeJson[T](
+                              implicit codec: JsonCodec[T]
+                            ): EncodeJson[T] =
+    new EncodeJson[T] {
+      def encode(a: T): AJson = JsonS.toArgonaut(codec.toJson(a))
+    }
 
-    /**
-      * If 'this' contains a Json and it is a JSON object,
-      * attempts to lookup the value at the provided key.
-      */
-    def ~>(key: String): Option[Json] =
-      x.flatMap(_.assoc).flatMap(_.toMap.get(key))
-
-    /**
-      * If 'this' contains a Json and it is a JSON array,
-      * attempts to lookup the value at the provided index.
-      */
-    def ~>(n: Int): Option[Json] =
-      x.flatMap(_.array).flatMap(_.lift(n))
-
-    /**
-      * If 'this' contains a Json and it is a JSON object,
-      * returns the object represented as a `Map`.
-      */
-    def asMap: Option[Map[String, Json]] =
-      x.flatMap(_.assoc).map(_.toMap)
-
-    /**
-      * If 'this' contains a Json and it is a JSON array,
-      * returns the array represented as a `List`.
-      */
-    def asList: Option[List[Json]] =
-      x.flatMap(_.array)
-
-    /**
-      * If 'this' contains a Json and it is a JSON number,
-      * attempts to represent the value as a `Long`.
-      */
-    def long: Option[Long] =
-      x.flatMap(_.number).flatMap(_.toLong)
-
-    /**
-      * If 'this' contains a Json and it is a JSON number,
-      * attempts to represent the value as a `Double`.
-      */
-    def double: Option[Double] =
-      x.flatMap(_.number).flatMap(_.toDouble)
-
-    /**
-      * If 'this' contains a Json and it is aa JSON string,
-      * returns the string as a `String`.
-      */
-    def string: Option[String] =
-      x.flatMap(_.string)
-
-    /**
-      * If 'this' contains a Json and it is a JSON 'true' or 'false' literal,
-      * returns an appropriate representation as a `Boolean`.
-      */
-    def bool: Option[Boolean] =
-      x.flatMap(_.bool)
-
-    /**
-      * If 'this' contains a Json and it is the JSON 'null' literal,
-      * returns `Some({})`, otherwise returns `None`.
-      */
-    def nullLiteral: Option[Unit] =
-      x.map(_.isNull).flatMap({
-        case false => None
-        case true => Some({})
-      })
-  }
+  implicit def decodeJson[T](
+                              implicit codec: JsonCodec[T]
+                            ): DecodeJson[T] =
+    new DecodeJson[T] {
+      def decode(hcursor: HCursor): DecodeResult[T] =
+        codec.fromJson(JsonS.fromArgonaut(hcursor.cursor.focus)).fold(
+          withFailure = msg => DecodeResult.fail(msg, hcursor.history),
+          withSuccess = a => DecodeResult.ok(a)
+        )
+    }
 }

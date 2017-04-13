@@ -18,17 +18,17 @@ For core features add:
 <dependency>
     <groupId>com.cj</groupId>
     <artifactId>serialization</artifactId>
-    <version>1.1</version>
+    <version>1.2</version>
 </dependency>
 ```
 
-For JSON functionality, also add:
+For JSON, also add:
 
 ```xml
 <dependency>
     <groupId>io.argonaut</groupId>
     <artifactId>argonaut_2.11</artifactId>
-    <version>6.2-RC2</version>
+    <version>6.2</version>
 </dependency>
 ```
 
@@ -38,13 +38,32 @@ Full documentation available upon build at "target/site/scaladocs/index.html"
 
 ### Core Features
 
+The basic notions of the library are the traits `Serialize[T]` and `Deserialize[T]`, the functions `serialize` and `deserialize`, and the wrapper `Result[T]`.
+
+```scala
+trait Serialize[-T] {
+  def serialize(t: T): Array[Byte]
+}
+trait Deserialize[+T] {
+  def deserialize(bytes: Array[Byte]): Result[T]
+}
+
+def serialize[T: Serialize](t: T): Array[Byte]
+def deserialize[T: Deserialize](bytes: Array[Byte]): Result[T]
+
+class Result[T] {
+  def fold[X](withFailure: String => X, withSuccess: T => X): X
+  ...  
+}
+```
+
 Import core features as:
 
 ```scala
 import com.cj.serialization._
 ```
 
-This will put `serialize` and `deserialize` into scope and will put values of type `Serializable[String]`, `Deserializable[String]`, `Serializable[V]`, and `Deserializable[V]` (where `V` is all of Scala's `AnyVal` types) into scope. The user may create their own implicit objects extending `Serializable[T]` and `Deserializable[T]` for any type `T`, which will expose `serialize` and `deserialize` functions for `T`, respectively.
+This will put `serialize` and `deserialize` into scope and will put values of type `Serialize[String]`, `Deserialize[String]`, `Serialize[V]`, and `Deserialize[V]` (where `V` is all of Scala's `AnyVal` types) into scope. The user may create their own values of `Serialize[T]` and `Deserialize[T]` for any type `T`, which will expose `serialize` and `deserialize` prefix functions for `T`, respectively.
 
 For example:
 
@@ -52,14 +71,14 @@ For example:
 case class Foo(bar: Int)
 
 // implement `serialize`
-implicit object FooSerializer extends Serializable[Foo] {
+implicit object FooSerializer extends Serialize[Foo] {
   def serialize(t: Foo): Array[Byte] =
     t.toString.getBytes
 }
 
 // implement `deserialize` (always the hard part)
-implicit object FooDeserializer extends Deserializable[Foo] {
-  def deserialize(bytes: Array[Byte]): Option[Foo] = {
+implicit object FooDeserializer extends Deserialize[Foo] {
+  def deserialize(bytes: Array[Byte]): Result[Foo] = {
     val string: String = new String(bytes)
     val regex = "Foo\\((\\d+)\\)".r
 
@@ -79,12 +98,12 @@ assert(
   serialize(fooVal) sameElements "Foo(1234)".getBytes
 )
 assert(
-  // 'fooBytes' deserializes to `Some(Foo(5678)`
+  // 'fooBytes' deserializes to `RSuccess(Foo(5678)`
   deserialize[Foo](fooBytes).contains(Foo(5678))
 )
 assert(
   // `deserialize` fails gracefully on incoherent input
-  deserialize[Foo](incoherentBytes).isEmpty
+  deserialize[Foo](incoherentBytes).isFailure
 )
 ```
 
@@ -97,7 +116,7 @@ The library integrates with and can act as a simple wrapper over Argonaut, a pur
 Import JSON/Argonaut integration as:
 
 ```scala
-import argonaut.{Argonaut, Json}
+import argonaut.Argonaut
 import com.cj.serialization.json._
 ```
 
@@ -112,19 +131,19 @@ case class Person(
                  )
 
 // use `casecodec4` here because `Person` has four fields
-object PersonS extends JsonSerializerFromCodec[Person](
+implicit val personCodec: JsonCodec[Person] = JsonCodec(
   Argonaut.casecodec4(Person.apply, Person.unapply)(
   "name", "age", "things", "mother"
   )
 )
 ```
 
-Then `PersonS` can be used to convert back and forth between `Person`, `Json`, `String` and `Array[Byte]`
+Then `personCodec` can be used to convert back and forth between `Person`, `Json`, `String` and `Array[Byte]`
 
 ```scala
 val tim = Person("Tim Drake", 19, List("Bo"), Some("Janet Drake"))
 assert(
-  PersonS.toPrettyJsonString(tim) ==
+  personCodec.toPrettyJsonString(tim) ==
     """{
       |  "name" : "Tim Drake",
       |  "age" : 19,
@@ -138,7 +157,7 @@ assert(
 val batmanString =
   """{"name":"Batman","age":38,"things":["Batarang","Batmobile"]}"""
 assert(
-  PersonS.fromJsonString(batmanString) ==
+  personCodec.fromJsonString(batmanString) ==
     Some(Person("Batman", 38, List("Batarang", "Batmobile"), None))
 )
 ```
@@ -153,9 +172,9 @@ In addition to importing core features, import Avro integration as:
 import com.cj.serialization.avro._
 ```
 
-This will put a value of type `Serializable[SpecificRecord]` into scope, which will expose `serialize` to any class that extends Avro's `SpecificRecord` interface, with no additional user input required.
+This will put a value of type `Serialize[SpecificRecord]` into scope, which will expose `serialize` to any class that extends Avro's `SpecificRecord` interface, with no additional user input required.
 
-To deserialize a class `R` that extend `SpecificRecord`, the user may construct a value of the class `AvroDeserializable[R]`, which extends `Deserializable[R]` by simply providing the Avro `Scheme` of `R`. This will expose `deserialize` to `R`, allowing the user to deserialize byte arrays generated by any Avro client. For example:
+To deserialize a class `R` that extend `SpecificRecord`, the user may construct a value of the class `DeserializeAvro[R]`, which extends `Deserialize[R]` by providing the Avro `Scheme` of `R`. This will expose `deserialize` to `R`, allowing the user to deserialize byte arrays generated by any Avro client. For example:
 
 ```scala
 class Rec extends SpecificRecord { ... }
@@ -165,7 +184,7 @@ val rec: Rec = new Rec( ... )
 val bytes: Array[Byte] = serialize(rec)
 
 // deserializing requires a bit of boilerplate
-implicit object RecD extends AvroDeserializable[Rec](Rec.getClassSchema)
+implicit object RecD extends DeserializeSpecificRecord[Rec](Rec.getClassSchema)
 
 val incomingBytes: Array[Byte] = ...
 val maybeRec: Option[Rec] = deserialize(incomingBytes)
@@ -181,9 +200,9 @@ In addition to importing core features, import Thrift integration (Scrooge integ
 import com.cj.serialization.thrift._
 ```
 
-This will put a value of type `Serializable[ThriftStruct]` into scope, which will expose `serialize` to any class that extends from Scrooge's `ThriftStruct` trait, with no additional user input required.
+This will put a value of type `Serialize[ThriftStruct]` into scope, which will expose `serialize` to any class that extends from Scrooge's `ThriftStruct` trait, with no additional user input required.
 
-To deserialize a class `R` that extends `ThriftStruct`, the user may construct a value of the class `ThriftDeserializer[R]`, which extends `Deserializable[R]` by simply providing the Scrooge `ThriftStructCodec` of `R` as a constructor argument. This will expose `deserialize` to `R`, allowing the user to deserialize byte arrays generated by any Thrift client. For example:
+To deserialize a class `R` that extends `ThriftStruct`, the user may construct a value of the class `ThriftDeserializer[R]`, which extends `Deserialize[R]` by simply providing the Scrooge `ThriftStructCodec` of `R` as a constructor argument. This will expose `deserialize` to `R`, allowing the user to deserialize byte arrays generated by any Thrift client. For example:
 
 ```scala
 trait Rec extends ThriftStruct { ... } // generated by Scrooge

@@ -13,7 +13,7 @@ object Java {
     *
     * @tparam T The class that can be converted into byte arrays.
     */
-  abstract class SerializerJ[T] {
+  abstract class SerializeJ[T] {
     def serialize(t: T): Array[Byte]
   }
 
@@ -23,7 +23,7 @@ object Java {
     *
     * @tparam T The class that can be read from byte arrays.
     */
-  abstract class DeserializerJ[T] {
+  abstract class DeserializeJ[T] {
     def deserialize(bytes: Array[Byte]): Optional[T]
   }
 }

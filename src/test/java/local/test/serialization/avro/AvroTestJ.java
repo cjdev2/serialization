@@ -39,7 +39,7 @@ public class AvroTestJ {
     private void AvroSerializerJ_should_serialize_TestRecords() {
         // given
         TestRecord record = new TestRecord("foó", 123L);
-        Java.AvroSerializerJ<TestRecord> serializer = new Java.AvroSerializerJ<>();
+        Java.AvroSerializeJ<TestRecord> serializer = new Java.AvroSerializeJ<>();
         byte[] exptectedBytes = { 8, 102, 111, -61, -77, -10, 1 };
 
         // when
@@ -66,8 +66,8 @@ public class AvroTestJ {
     private void AvroDeserializerJ_should_deserialize_TestRecords() {
         // given
         byte[] bytes = { 8, 102, 111, -61, -77, -10, 1 };
-        Java.AvroDeserializerJ<TestRecord> deserializer =
-                new Java.AvroDeserializerJ<>(TestRecord.getClassSchema());
+        Java.AvroDeserializeJ<TestRecord> deserializer =
+                new Java.AvroDeserializeJ<>(TestRecord.getClassSchema());
         TestRecord expectedRecord = new TestRecord("foó", 123L);
 
         // when

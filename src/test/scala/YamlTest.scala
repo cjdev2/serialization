@@ -3,7 +3,9 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class YamlTest extends FlatSpec with Matchers with PropertyChecks {
 
+  import com.cj.serialization.Result
   import com.cj.serialization.yaml._
+  import com.cj.serialization.json.Json
   import Fixtures._
 
   behavior of "YamlCodecYaml"
@@ -14,7 +16,7 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
     forAll(gen) {
       // given
       (t: T) =>
-        val expected = Some(t)
+        val expected = Result.safely(t)
 
         // when
         val actual = fromYaml[T](toYaml[T](t))
@@ -40,19 +42,32 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
     }
   }
 
+  it should "satisfy the serialization laws non-trivially" in {
+    // given
+    val yaml: Yaml = Yaml.assoc(Map(Yaml.string("foo") -> Yaml.string("bar")))
+
+    // when
+    val result1: Yaml =
+      fromYaml[Yaml](toYaml[Yaml](yaml)).getOrThrow
+
+    val result2: Yaml =
+      fromYaml[Yaml](yaml).map(toYaml[Yaml]).flatMap(fromYaml[Yaml]).getOrThrow
+
+    // then
+    result1 should be(yaml)
+    result2 should be(yaml)
+  }
+
   behavior of "YamlCodecJson"
 
-  import com.cj.serialization.json.Json
-
-  // TODO: It seems the Yaml spec is inconsistent...
-  // TODO: I don't know if this test is fixable.
+  // TODO: Fix Yaml AST representation to allow lossless JSON conversion
   ignore should "satisfy the first serialization law" in {
     type T = Json
     val gen = implicitly[Gen[T]]
     forAll(gen) {
       // given
       (t: T) =>
-        val expected = Some(t)
+        val expected = Result.safely(t)
 
         // when
         val actual = fromYaml[T](toYaml[T](t))
@@ -78,138 +93,22 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
     }
   }
 
-//  behavior of "YamlCodecString"
-//
-//  it should "satisfy the first law" in {
-//    type T = String
-//
-//    forAll { (t: T) =>
-//
-//      fromYaml[T](toYaml[T](t)) should be(Some(t))
-//    }
-//  }
-//
-//  it should "satisfy the second law" in {
-//    type T = String
-//
-//    forAll { (yaml: Yaml) =>
-//      fromYaml[T](yaml).map(toYaml[T]).flatMap(fromYaml[T]) should be(fromYaml[T])
-//    }
-//  }
-//
-//  behavior of "YamlCodecLong"
-//
-//  it should "satisfy the first law" in {
-//    type T = Long
-//
-//    forAll { (t: T) =>
-//
-//      fromYaml[T](toYaml[T](t)) should be(Some(t))
-//    }
-//  }
-//
-//  it should "satisfy the second law" in {
-//    type T = Long
-//
-//    forAll { (yaml: Yaml) =>
-//      fromYaml[T](yaml).map(toYaml[T]).flatMap(fromYaml[T]) should be(fromYaml[T])
-//    }
-//  }
-//
-//  behavior of "YamlCodecDouble"
-//
-//  it should "satisfy the first law" in {
-//    type T = Double
-//
-//    forAll { (t: T) =>
-//
-//      fromYaml[T](toYaml[T](t)) should be(Some(t))
-//    }
-//  }
-//
-//  it should "satisfy the second law" in {
-//    type T = Double
-//
-//    forAll { (yaml: Yaml) =>
-//      fromYaml[T](yaml).map(toYaml[T]).flatMap(fromYaml[T]) should be(fromYaml[T])
-//    }
-//  }
-//
-//  behavior of "YamlCodecBoolean"
-//
-//  it should "satisfy the first law" in {
-//    type T = Boolean
-//
-//    forAll { (t: T) =>
-//
-//      fromYaml[T](toYaml[T](t)) should be(Some(t))
-//    }
-//  }
-//
-//  it should "satisfy the second law" in {
-//    type T = Boolean
-//
-//    forAll { (yaml: Yaml) =>
-//      fromYaml[T](yaml).map(toYaml[T]).flatMap(fromYaml[T]) should be(fromYaml[T])
-//    }
-//  }
-//
-//  behavior of "yamlCodecList"
-//
-//  it should "satisfy the first law" in {
-//    type T = List[Yaml]
-//
-//    forAll { (t: T) =>
-//
-//      fromYaml[T](toYaml[T](t)) should be(Some(t))
-//    }
-//  }
-//
-//  it should "satisfy the second law" in {
-//    type T = List[Yaml]
-//
-//    forAll { (yaml: Yaml) =>
-//      fromYaml[T](yaml).map(toYaml[T]).flatMap(fromYaml[T]) should be(fromYaml[T])
-//    }
-//  }
-//
-//  behavior of "yamlCodecMap"
-//
-//  it should "satisfy the first law" in {
-//    type T = Map[Yaml, Yaml]
-//
-//    forAll { (t: T) =>
-//
-//      fromYaml[T](toYaml[T](t)) should be(Some(t))
-//    }
-//  }
-//
-//  it should "satisfy the second law" in {
-//    type T = Map[Yaml, Yaml]
-//
-//    forAll { (yaml: Yaml) =>
-//      fromYaml[T](yaml).map(toYaml[T]).flatMap(fromYaml[T]) should be(fromYaml[T])
-//    }
-//  }
-//
-//  behavior of "yamlCodecStream"
-//
-//  it should "satisfy the first law" in {
-//    type T = Stream[Yaml]
-//
-//    forAll { (t: T) =>
-//
-//      fromYaml[T](toYaml[T](t)) should be(Some(t))
-//    }
-//  }
-//
-//  it should "satisfy the second law" in {
-//    type T = Stream[Yaml]
-//
-//    forAll { (yaml: Yaml) =>
-//      fromYaml[T](yaml).map(toYaml[T]).flatMap(fromYaml[T]) should be(fromYaml[T])
-//    }
-//  }
+  it should "satisfy the serialization laws non-trivially" in {
+    // given
+    val json: Json = Json.assoc(Map("foo" -> Json.string("bar")))
+    val yaml: Yaml = Yaml.assoc(Map(Yaml.string("foo") -> Yaml.string("bar")))
+
+    // when
+    val result1: Json =
+      fromYaml[Json](toYaml[Json](json)).getOrThrow
+
+    val result2: Json =
+      fromYaml[Json](yaml).map(toYaml[Json]).flatMap(fromYaml[Json]).getOrThrow
+
+    // then
+    result1 should be(json)
+    result2 should be(json)
+  }
 
   object Fixtures {
 
@@ -260,24 +159,22 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
 
     implicit lazy val genJson: Gen[Json] = {
 
-      import argonaut.Json
-
       lazy val genValue = {
 
         lazy val genNum =
           Gen.oneOf(
-            Arbitrary.arbitrary[Long].map(Json.jNumber),
-            Arbitrary.arbitrary[Double].map(Json.jNumber).map(_.getOrElse(Json.jNull))
+            Arbitrary.arbitrary[Long].map(Json.long),
+            Arbitrary.arbitrary[Double].map(Json.double)
           )
 
         lazy val genString =
-          Arbitrary.arbitrary[String].map(Json.jString)
+          Arbitrary.arbitrary[String].map(Json.string)
 
         lazy val genBool =
-          Arbitrary.arbitrary[Boolean].map(Json.jBool)
+          Arbitrary.arbitrary[Boolean].map(Json.bool)
 
         lazy val genNull =
-          Gen.const(Json.jNull)
+          Gen.const(Json.nul)
 
         Gen.oneOf(genNum, genString, genBool, genNull)
       }
@@ -289,17 +186,17 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
           value <- genValue
         } yield (key, value)
 
-        Gen.listOf(genPair).map(Json.jObjectAssocList)
+        Gen.listOf(genPair).map(pairs => Json.assoc(pairs.toMap))
       }
 
       lazy val genArray =
-        Gen.listOf(genValue).map(Json.jArray)
+        Gen.listOf(genValue).map(Json.array)
 
       lazy val genFlatJson =
         Gen.oneOf(genArray, genObject)
 
       lazy val genNestedArray =
-        Gen.listOf(genFlatJson).map(Json.jArray)
+        Gen.listOf(genFlatJson).map(Json.array)
 
       lazy val genNestedObject = {
 
@@ -308,7 +205,7 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
           value <- genFlatJson
         } yield (key, value)
 
-        Gen.listOf(genPair).map(Json.jObjectAssocList)
+        Gen.listOf(genPair).map(pairs => Json.assoc(pairs.toMap))
       }
 
       val genNestedJson =

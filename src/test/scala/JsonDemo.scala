@@ -11,9 +11,7 @@ object JsonDemo extends App {
   // Case Classes with Type Parameters
 
   import com.cj.serialization._
-  import com.cj.serialization.json._
-
-  import argonaut.{Argonaut, Json}
+  import com.cj.serialization.json._, JsonImplicits._
   import scalaz._, Scalaz._ // Not required, but you'll be glad you did...
 
   // TODO: Case Classes and Automatic Codec Generation
@@ -27,39 +25,36 @@ object JsonDemo extends App {
                    )
 
   // We bring a `CodecJson[Person]` into scope.
-  implicit val personCodec: CodecJson[Person] =
+  implicit val personCodec: JsonCodec[Person] = JsonCodec(
     // We need to tell argonaut how to convert between `Person` and `Json`.
     // Argonaut does the hard parts: it just needs us to give it a few hints.
     // We use `casecodec4` because `Person` has four fields.
-    Argonaut.casecodec4(Person.apply, Person.unapply)(
+    argonaut.Argonaut.casecodec4(Person.apply, Person.unapply)(
       "prénom", "âge", "des_choses", "mère"
     ) // Name the properties whatever you'd like.
+  )
 
   // We now have access to
   //
-  //     toJson:             Person      => Json
-  //     toJsonString:       Person      => String
-  //     toPrettyJsonString: Person      => String
-  //     serialize:          Person      => Array[Byte]
-  //     deserialize:        Array[Byte] => Option[Person]
-  //     fromJsonString:     String      => Option[Person]
-  //     fromJson:           Json        => Option[Person]
+  //     toJson:       Person      => Json
+  //     printJson:    Person      => String
+  //     prettyJson:   Person      => String
+  //     serialize:    Person      => Array[Byte]
+  //     deserialize:  Array[Byte] => Result[Person]
+  //     parseJson:    String      => Result[Person]
+  //     fromJson:     Json        => Result[Person]
   //
   // which satisfy the following contract:
   //
-  //     fromJson(toJson(t))                   == Some(t)
-  //     fromJsonString(toJsonString(t))       == Some(t)
-  //     fromJsonString(toPrettyJsonString(t)) == Some(t)
-  //     deserialize(serialize(t))             == Some(t)
+  //     fromJson(toJson(t))        == Result.safely(t)
+  //     parseJson(printJson(t))    == Result.safely(t)
+  //     parseJson(prettyJson(t))   == Result.safely(t)
+  //     deserialize(serialize(t))  == Result.safely(t)
   //
-  //     fromJson(json).map(toJson).flatMap(fromJson)
-  //       == fromJson(json)
-  //     fromJsonString(string).map(toJsonString).flatMap(fromJsonString)
-  //       == fromJsonString(string)
-  //     fromJsonString(string).map(toPrettyJsonString).flatMap(fromJsonString)
-  //       == fromJsonString(string)
-  //     deserialize(bytes).map(serialize).flatMap(deserialize)
-  //       == deserialize(bytes)
+  //     fromJson(json) map toJson flatMap fromJson == fromJson(json)
+  //     parseJson(string) map printJson flatMap parseJson == parseJson(string)
+  //     parseJson(string) map prettyJson flatMap parseJson == parseJson(string)
+  //     deserialize(bytes) map serialize flatMap deserialize == deserialize(bytes)
   //
   // The contract ensure that our implementation is reasonable and coherent.
 
@@ -68,7 +63,7 @@ object JsonDemo extends App {
   // Create a `Person` as you normally would.
   val tim = Person("Tim Drake", 19, List("Bo"), Some("Janet Drake"))
   assert(
-    toPrettyJsonString(tim) ==
+    prettyJson(tim) ==
       """{
         |  "prénom" : "Tim Drake",
         |  "âge" : 19,
@@ -85,26 +80,23 @@ object JsonDemo extends App {
   )
   assert(
     // Our `Person` survives Stringification.
-    fromJsonString[Person](toJsonString(tim)).contains(tim)
+    parseJson[Person](printJson(tim)).contains(tim)
   )
   assert(
     // Our `Person` survives pretty stringification.
-    fromJsonString[Person](toPrettyJsonString(tim)).contains(tim)
+    parseJson[Person](prettyJson(tim)).contains(tim)
   )
-//  assert(
-//    // Our `Person` survives serialization/deserialization.
-//    deserialize[Person](serialize(tim)).contains(tim)
-//  )
+  assert(
+    // Our `Person` survives serialization/deserialization.
+    deserialize[Person](serialize(tim)).contains(tim)
+  )
 
   // It's easy to create `Json` values in native Scala (though
   // you often won't need to do any `Json` manipulation like this).
-  val batman: Json = Json(
-    "prénom" -> Json.jString("Batman"),
-    "âge" -> Json.jNumber(38),
-    "des_choses" -> Json.array(
-      Json.jString("Batarang"),
-      Json.jString("Batmobile")
-    )
+  val batman: Json = Json.obj(
+    "prénom" -> "Batman",
+    "âge" -> 38,
+    "des_choses" -> Json.arr("Batarang", "Batmobile")
     // Notice the "mère" property is absent, which
     // is perfectly fine, since it's an `Option[_]`.
   )
@@ -137,20 +129,17 @@ object JsonDemo extends App {
 
   assert(
     // A JSON string can be parsed into a `Person`.
-    fromJsonString[Person](bruce).contains(
+    parseJson[Person](bruce).contains(
       Person("Bruce Wayne", 38, List("Money", "Alfred"), Some("Martha Wayne"))
     )
   )
   assert({
     // A JSON string can be parsed into a native `Json` value.
-    fromJsonString[Json](bruce).contains(Json(
-      "prénom" -> Json.jString("Bruce Wayne"),
-      "âge" -> Json.jNumber(38),
-      "des_choses" -> Json.array(
-        Json.jString("Money"),
-        Json.jString("Alfred")
-      ),
-      "mère" -> Json.jString("Martha Wayne")
+    parseJson[Json](bruce).contains(Json.obj(
+      "prénom" -> "Bruce Wayne",
+      "âge" -> 38,
+      "des_choses" -> Json.arr("Money", "Alfred"),
+      "mère" -> "Martha Wayne"
     ))
   })
   assert(
@@ -159,10 +148,10 @@ object JsonDemo extends App {
   )
   assert(
     // Our JSON string survives a round trip.
-    fromJsonString[Person](bruce)
-      .map(toJsonString[Person])
-      .flatMap(fromJsonString[Person])
-      == fromJsonString[Person](bruce)
+    parseJson[Person](bruce)
+      .map(printJson[Person])
+      .flatMap(parseJson[Person])
+      == parseJson[Person](bruce)
   )
 
   // TODO: Validation Guarantees
@@ -173,22 +162,22 @@ object JsonDemo extends App {
   // In either of those cases, `serialization` returns `None`, giving users
   // confidence that the returned data is guaranteed to be coherent.
 
-  val agelessPerson: Json = Json(
-    "prénom" -> Json.jString("Ageless"),
-    "des_choses" -> Json.array()
+  val agelessPerson: Json = Json.obj(
+    "prénom" -> "Ageless",
+    "des_choses" -> Json.emptyArr
   )
   assert(
     // "âge" is absent, so parsing should fail gracefully.
-    fromJson[Person](agelessPerson).isEmpty
+    fromJson[Person](agelessPerson).isFailure
   )
-  val nullAgePerson: Json = Json(
-    "prénom" -> Json.jString("Null-age"),
-    "âge" -> Json.jNull,
-    "des_choses" -> Json.array()
+  val nullAgePerson: Json = Json.obj(
+    "prénom" -> "Null-age",
+    "âge" -> Json.nul,
+    "des_choses" -> Json.emptyArr
   )
   assert(
     // "âge" is null, so parsing should fail gracefully.
-    fromJson[Person](nullAgePerson).isEmpty
+    fromJson[Person](nullAgePerson).isFailure
   )
 
   // Data shape requirements are rather strict:
@@ -203,7 +192,7 @@ object JsonDemo extends App {
     |}""".stripMargin
   assert(
     // "des_choses" is missing, so fail.
-    fromJsonString[Person](noThingsPerson).isEmpty
+    parseJson[Person](noThingsPerson).isFailure
   )
   val nullThingsPerson: String =
     """{
@@ -213,7 +202,7 @@ object JsonDemo extends App {
       |}""".stripMargin
   assert(
     // "des_choses" is null, but not an `Option` in our case class, so fail.
-    fromJsonString[Person](nullThingsPerson).isEmpty
+    parseJson[Person](nullThingsPerson).isFailure
   )
 
   // How does the library (argonaut, really)
@@ -227,7 +216,7 @@ object JsonDemo extends App {
     |}""".stripMargin // Augie is an Emacs user, obv.
   assert(
     // Extra fields in JSON strings are silently ignored. (Quack, quack!)
-    fromJsonString[Person](augmentedPerson).contains(
+    parseJson[Person](augmentedPerson).contains(
       Person("Augie", 18, List(), None)
     )
   )
@@ -244,44 +233,39 @@ object JsonDemo extends App {
 
   // One direction is always easy.
   def adtSumToJson: ADTSum => Json = {
-    case SBool(p) => Json("bool" -> Json.jBool(p))
-    case SInt(n) => Json("int" -> Json.jNumber(n))
+    case SBool(p) => Json.obj("bool" -> p)
+    case SInt(n) => Json.obj("int" -> n)
   }
 
   // One direction is always hard.
-  def adtSumFromJson: Json => Option[ADTSum] = json => {
-    val optObj = json.assoc
-    val optBool = optObj.flatMap(
-      _.toMap.get("bool").flatMap(_.bool)
-    )
-    val optInt = optObj.flatMap(
-      _.toMap.get("int").flatMap(_.number).flatMap(_.toInt)
-    )
-    (optInt, optBool) match {
-      case (Some(n), None) => Option(SInt(n))
-      case (None, Some(p)) => Option(SBool(p))
-      case _ => None
-    }
-  }
+  def adtSumFromJson: Json => Result[ADTSum] =
+    json => Result.fromOption(json.assoc flatMap { assoc =>
+      (assoc.get("bool"), assoc.get("int")) match {
+        case (Some(p), None) => p.bool map SBool
+        case (None, Some(n)) => n.long flatMap { long =>
+          scala.util.Try(long.toInt).toOption } map SInt
+        case _ => None
+      }
+    }, "failed to parse Json as ADTSum")
 
   // Use your converters as inputs to `JsonSerializer.apply`.
   // I usually prefer to inline to converters so as not to have them
   // in global scope (they are redundant with `fromJson` and `toJson`).
-  implicit val ADTSumJsonSerializer =
-    JsonSerializer[ADTSum](adtSumToJson, adtSumFromJson)
+  implicit val jsonCodecADTSum: JsonCodec[ADTSum] =
+    JsonCodec[ADTSum](adtSumToJson, adtSumFromJson)
 
   // And everything works as expected.
   assert(
-    toJsonString[ADTSum](SBool(false)) == """{"bool":false}"""
+    printJson[ADTSum](SBool(false)) == """{"bool":false}"""
   )
   assert(
-    toJsonString[ADTSum](SInt(12)) == """{"int":12}"""
+    printJson[ADTSum](SInt(12)) == """{"int":12}"""
   )
   assert(
-    fromJsonString[ADTSum]("""{ "bool" : true }""").get == SBool(true)
+    parseJson[ADTSum]("""{ "bool" : true }""").getOrThrow == SBool(true)
   )
   assert(
-    fromJsonString[ADTSum]("""{ "int": -2}""").get == SInt(-2)
+    parseJson[ADTSum]("""{ "int": -2}""").getOrThrow == SInt(-2)
   )
   assert(
     deserialize[ADTSum](serialize(SInt(51))).contains(SInt(51))
@@ -295,42 +279,45 @@ object JsonDemo extends App {
   case class Pair(key: Key, value: Value)
 
   // The invocation is a bit more complicated.
-  implicit val pairCodec: CodecJson[Pair] = {
+  // Use a CodecJson rather than a JsonCodec here.
+  // The reason is complicated, and the design is questionable,
+  // but it'll get better soon ^_^;
+  implicit val pairCodec: JsonCodec[Pair] = JsonCodec({
     // Argonaut needs codecs for `Key` and `Value` if we
     // expect it to generate a codec for `Pair`, so we ask
     // it to generate those prerequisite codecs first.
     implicit def keyCodec =
-      Argonaut.casecodec1(Key.apply, Key.unapply)("get")
+      argonaut.Argonaut.casecodec1(Key.apply, Key.unapply)("get")
     implicit def valueCodec =
-      Argonaut.casecodec1(Value.apply, Value.unapply)("get")
-    Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
-  }
+      argonaut.Argonaut.casecodec1(Value.apply, Value.unapply)("get")
+    argonaut.Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
+  })
 
   val pair = Pair(Key(5), Value("foo"))
 
   assert(
     // And it works like a charm, albeit there's the boilerplate.
-    toJsonString(pair) == """{"key":{"get":5},"value":{"get":"foo"}}"""
+    printJson(pair) == """{"key":{"get":5},"value":{"get":"foo"}}"""
   )
 
   // We need to go deeper.
   case class ClassyMap(pairs: List[Pair])
 
   // Build on top of what we've already built.
-  implicit val classyMapCodec: CodecJson[ClassyMap] = {
+  implicit val classyMapCodec: JsonCodec[ClassyMap] = JsonCodec(
     // Argonaut already knows how to encode/decode
     // `Pair`s, so no need to provide evidence here.
-    Argonaut.casecodec1(ClassyMap.apply, ClassyMap.unapply)("pairs")
-  }
+    argonaut.Argonaut.casecodec1(ClassyMap.apply, ClassyMap.unapply)("pairs")
+  )
 
   val map = ClassyMap(List(pair))
 
   // And everything works.
-//  assert(
-//    deserialize[ClassyMap](serialize(map)).contains(map)
-//  )
   assert(
-    toPrettyJsonString(map) ==
+    deserialize[ClassyMap](serialize(map)).contains(map)
+  )
+  assert(
+    prettyJson(map) ==
       """{
         |  "pairs" : [
         |    {
@@ -355,27 +342,27 @@ object JsonDemo extends App {
   // statement, sort-of). You would leave out the `implicit` keyword if you'd
   // like to have access to two or more alternate ways to serialize the same
   // class coexisting in scope.
-  val terseClassyMapSerializer: JsonSerializer[ClassyMap] =
-    JsonSerializer[ClassyMap](
+  val terseClassyMapSerializer: JsonCodec[ClassyMap] =
+    JsonCodec[ClassyMap](
       // Provide a `ClassyMap => Json`.
-      to = classyMap => Json.jArray(
-        classyMap.pairs.map(pair => Json(
-          "k" -> Json.jNumber(pair.key.get),
-          "v" -> Json.jString(pair.value.get)
+      to = (classyMap: ClassyMap) => Json.array(
+        classyMap.pairs.map(pair => Json.obj(
+          "k" -> pair.key.get,
+          "v" -> pair.value.get
         ))
       ),
-      // Provide a `Json => Option[ClassyMap]`.
-      from = json => for {
+      // Provide a `Json => Result[ClassyMap]`.
+      from = (json: Json) => Result.fromOption(for {
         jsons <- json.array
-        objs <- jsons.map(_.assoc).sequence // This is why we like scalaz.
-        pairs <- objs.map(obj => for {
-          kJson <- obj.toMap.get("k")
+        assocs <- jsons.map(_.assoc).sequence // This is why we like scalaz.
+        pairs <- assocs.map(obj => for {
+          kJson <- obj.get("k")
           kNum <- kJson.number
-          k <- kNum.toInt
-          vJson <- obj.toMap.get("v")
+          k <- scala.util.Try(kNum.toIntExact).toOption.flatMap(Option.apply)
+          vJson <- obj.get("v")
           v <- vJson.string
         } yield Pair(Key(k), Value(v))).sequence
-      } yield ClassyMap(pairs)
+      } yield ClassyMap(pairs), "Failed to parse Json as ClassyMap")
     )
 
   val mapBytes = serialize(map)
@@ -393,12 +380,12 @@ object JsonDemo extends App {
   )
   assert(
     // Verbose JSON serializer:
-    toJsonString(map) ==
+    printJson(map) ==
       """{"pairs":[{"key":{"get":5},"value":{"get":"foo"}}]}"""
   )
   assert(
     // Terse JSON serializer:
-    terseClassyMapSerializer.toJsonString(map) ==
+    terseClassyMapSerializer.printJson(map) ==
       """[{"k":5,"v":"foo"}]"""
   )
 
@@ -409,16 +396,9 @@ object JsonDemo extends App {
 
   // We declare an `implicit def` (rather than an `implicit
   // object`) because we need to parametrize by the type `T`.
-  // If we expect argonaut to generate a codec for `Wrapper[T]`,
-  // then we'd better make sure it can get a codec for `T` first.
-  // We enforce this precondition as a pair of implicit arguments.
   implicit def wrapperSerializer[T](
-                                     implicit
-                                     encoderT : EncodeJson[T],
-                                     decoderT : DecodeJson[T]
-                                   ): JsonSerializer[Wrapper[T]] =
-    jsonSerializerFromCodec[Wrapper[T]]({
-
+                                     implicit codecT: JsonCodec[T]
+                                   ): JsonCodec[Wrapper[T]] = JsonCodec(
     // The `casecodecN` family of functions each have
     // N+1 type parameters and three argument groups.
     //
@@ -443,19 +423,20 @@ object JsonDemo extends App {
     // one. We can at any time override the implicits by explicitly providing
     // `encA` and `decA` (as we do below).
 
-    Argonaut.casecodec1[T, Wrapper[T]](
+    argonaut.Argonaut.casecodec1[T, Wrapper[T]](
       Wrapper.apply[T], Wrapper.unapply[T]
-    )("runWrapper")(encoderT, decoderT)
-  })
+    )("runWrapper")
+  )
 
   // We had to read a lot, but we only ended up needing to writing three lines
   // of code, so that's pretty cool. Now we can serialize and deserialize any
   // `Wrapper[T]` so long as `T` is serializable/deserializable.
   assert(
-    deserialize[Wrapper[Int]](serialize(Wrapper(5))).get.runWrapper == 5
+    deserialize[Wrapper[Person]](serialize(Wrapper(Person("", 0, Nil, None))))
+      .getOrThrow.runWrapper == Person("", 0, Nil, None)
   )
   assert(
-    toPrettyJsonString(Wrapper(tim)) ==
+    prettyJson(Wrapper(tim)) ==
       """{
         |  "runWrapper" : {
         |    "prénom" : "Tim Drake",
@@ -468,7 +449,7 @@ object JsonDemo extends App {
         |}""".stripMargin
   )
   assert(
-    toPrettyJsonString(Wrapper(map)) ==
+    prettyJson(Wrapper(map)) ==
       """{
         |  "runWrapper" : {
         |    "pairs" : [
@@ -510,5 +491,5 @@ object JsonDemo extends App {
   println(deserialize[String](Array[Byte](10, 32, 32, 40, 32, 32, 83, 99, 97,
     108, 97, 32, 32, 41, 10, 10, 32, 32, 110, 111, 119, 32, 32, 121, 111, 117,
     39, 114, 101, 10, 32, 32, 32, 32, 112, 108, 97, 121, 105, 110, 103, 10, 32,
-    32, 119, 105, 116, 104, 32, 32, 112, 111, 119, 101, 114, 46, 10)).get)
+    32, 119, 105, 116, 104, 32, 32, 112, 111, 119, 101, 114, 46, 10)).getOrThrow)
 }

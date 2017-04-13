@@ -4,19 +4,19 @@ object SerializationDemo extends App {
 
   case class Foo(bar: Int)
 
-  implicit object FooSerializer extends Serializable[Foo] {
+  implicit object SerializeFoo extends Serialize[Foo] {
     def serialize(t: Foo): Array[Byte] =
       t.toString.getBytes
   }
 
-  implicit object FooDeserializer extends Deserializable[Foo] {
-    def deserialize(bytes: Array[Byte]): Option[Foo] = {
+  implicit object DeserializeFoo extends Deserialize[Foo] {
+    def deserialize(bytes: Array[Byte]): Result[Foo] = {
       val string: String = new String(bytes)
       val regex = "Foo\\((\\d+)\\)".r
 
       string match {
-        case regex(int) => Option(Foo(int.toInt))
-        case _ => None
+        case regex(int) => Result.safely(Foo(int.toInt))
+        case _ => Result.failure(s"Failed to deserialize $bytes to Foo")
       }
     }
   }
@@ -31,15 +31,15 @@ object SerializationDemo extends App {
   )
   assert(
     // 'fooBytes' deserializes to `Some(Foo(5678)`
-    deserialize[Foo](fooBytes).contains(Foo(5678))
+    deserialize[Foo](fooBytes) contains Foo(5678)
   )
   assert(
     // `deserialize` fails gracefully on incoherent input
-    deserialize[Foo](incoherentBytes).isEmpty
+    deserialize[Foo](incoherentBytes).isFailure
   )
   assert(
     // `fooVal` survives serialization followed by deserialization
-    deserialize[Foo](serialize(fooVal)).contains(fooVal)
+    deserialize[Foo](serialize(fooVal)) contains fooVal
   )
   assert(
     // `fooBytes` survives deserialization followed by serialization

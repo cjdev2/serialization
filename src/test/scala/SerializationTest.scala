@@ -1,8 +1,6 @@
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.util.Try
-
 class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
   import com.cj.serialization._
@@ -22,7 +20,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val expectedFooBytes2 = "Foo -123 á".getBytes
 
     // when: we implement `Serializable[Foo]`
-    implicit object SerializableFoo extends Serializable[Foo] {
+    implicit object SerializeFoo extends Serialize[Foo] {
       def serialize(t: Foo): Array[Byte] =
         s"""Foo ${t.bar} ${t.baz}""".getBytes
     }
@@ -37,7 +35,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     case class Foo(bar: Int, baz: Char)
 
     // when: we implement `Serializable[Foo]`
-    implicit object SerializableFoo extends Serializable[Foo] {
+    implicit object SerializableFoo extends Serialize[Foo] {
       def serialize(t: Foo): Array[Byte] =
         s"""Foo ${t.bar} ${t.baz}""".getBytes
     }
@@ -60,17 +58,17 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val expectedFoo2 = Foo(-123, 'á')
 
     // when: we implement `Deserialize[Foo]`
-    implicit object DeserializableFoo extends Deserializable[Foo] {
+    implicit object DeserializeFoo extends Deserialize[Foo] {
 
       private val regex = """Foo (-?\d+) (.)""".r
 
-      def deserialize(bytes: Array[Byte]): Option[Foo] = {
+      def deserialize(bytes: Array[Byte]): Result[Foo] = {
         new String(bytes) match {
           case regex(nStr, cStr) => for {
-            n <- Try(nStr.toInt).toOption.flatMap(Option.apply)
-            c <- Try(cStr.head).toOption.flatMap(Option.apply)
+            n <- Result.safely(nStr.toInt)
+            c <- Result.safely(cStr.head)
           } yield Foo(n, c)
-          case _ => None
+          case _ => Result.failure(s"Failed to deserialize $bytes to Foo")
         }
       }
     }
@@ -85,17 +83,17 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     case class Foo(bar: Int, baz: Char)
 
     // when: we implement `Deserialize[Foo]`
-    implicit object DeserializableFoo extends Deserializable[Foo] {
+    implicit object DeserializableFoo extends Deserialize[Foo] {
 
       private val regex = """Foo (-?\d+) (.)""".r
 
-      def deserialize(bytes: Array[Byte]): Option[Foo] = {
+      def deserialize(bytes: Array[Byte]): Result[Foo] = {
         new String(bytes) match {
           case regex(nStr, cStr) => for {
-            n <- Try(nStr.toInt).toOption.flatMap(Option.apply)
-            c <- Try(cStr.head).toOption.flatMap(Option.apply)
+            n <- Result.safely(nStr.toInt)
+            c <- Result.safely(cStr.head)
           } yield Foo(n, c)
-          case _ => None
+          case _ => Result.failure(s"Failed to deserialize $bytes to Foo")
         }
       }
     }
@@ -115,12 +113,12 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes2: Array[Byte] = "".getBytes
 
     // when
-    val result1: Option[String] = deserialize(bytes1)
-    val result2: Option[String] = deserialize(bytes2)
+    val result1: Result[String] = deserialize(bytes1)
+    val result2: Result[String] = deserialize(bytes2)
 
     // then
-    result1.isDefined should be(true)
-    result2.isDefined should be(true)
+    result1.isSuccess should be(true)
+    result2.isSuccess should be(true)
   }
 
   it should "be deserializable in general" in {
@@ -130,7 +128,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (s: String) =>
-      deserialize[String](s.getBytes).isDefined should be(true)
+      deserialize[String](s.getBytes).isSuccess should be(true)
     }
   }
 
@@ -139,10 +137,10 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val string: String = "foo"
 
     // when
-    val result = Try(serialize(string)).toOption.flatMap(Option.apply)
+    val result = Result.safely(serialize(string))
 
     // then
-    result.isDefined should be(true)
+    result.isSuccess should be(true)
   }
 
   it should "be serializable in general" in {
@@ -153,7 +151,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     // then
     forAll { (s: String) =>
       // we're checking that it didn't throw and that it didn't return null
-      Try(serialize(s)).toOption.flatMap(Option.apply).isDefined should be(true)
+      Result.safely(serialize(s)).isSuccess should be(true)
     }
   }
 
@@ -163,8 +161,8 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val string2: String = ""
 
     // when
-    val result1: Option[String] = deserialize(serialize(string1))
-    val result2: Option[String] = deserialize(serialize(string2))
+    val result1: Result[String] = deserialize(serialize(string1))
+    val result2: Result[String] = deserialize(serialize(string2))
 
     // then
     result1.contains(string1) should be(true)
@@ -178,18 +176,18 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (s: String) =>
-      val left: Option[String] = deserialize(serialize(s))
-      val right: Option[String] = Some(s)
+      val left: Result[String] = deserialize(serialize(s))
+      val right: Result[String] = Result.safely(s)
       left == right should be(true)
     }
 
     // and
     forAll { (bytes: Array[Byte]) =>
-      val left: Option[String] =
+      val left: Result[String] =
         deserialize[String](bytes)
           .map(serialize[String])
           .flatMap(deserialize[String])
-      val right: Option[String] = deserialize[String](bytes)
+      val right: Result[String] = deserialize[String](bytes)
       left == right should be(true)
     }
   }
@@ -204,7 +202,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
       """.stripMargin
 
     // when
-    val result: Option[String] = deserialize(serialize(stringWithCharacter))
+    val result: Result[String] = deserialize(serialize(stringWithCharacter))
 
     // then
     result.contains(stringWithCharacter) should be(true)
@@ -217,7 +215,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (bytes: Array[Byte]) =>
-      Try(deserialize[String](bytes)).isSuccess should be(true)
+      Result.safely(deserialize[String](bytes)).isSuccess should be(true)
       deserialize[String](bytes).contains(null) should be(false)
     }
   }
@@ -229,7 +227,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (s: String) =>
-      Try(serialize(s)).isSuccess should be(true)
+      Result.safely(serialize(s)).isSuccess should be(true)
       serialize(s) == null should be(false)
     }
   }
@@ -243,14 +241,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes3: Array[Byte] = "true".getBytes
 
     // when
-    val result1: Option[Boolean] = deserialize(bytes1)
-    val result2: Option[Boolean] = deserialize(bytes2)
-    val result3: Option[Boolean] = deserialize(bytes3)
+    val result1: Result[Boolean] = deserialize(bytes1)
+    val result2: Result[Boolean] = deserialize(bytes2)
+    val result3: Result[Boolean] = deserialize(bytes3)
 
     // then
-    result1.isDefined should be(false)
-    result2.isDefined should be(true)
-    result3.isDefined should be(true)
+    result1.isSuccess should be(false)
+    result2.isSuccess should be(true)
+    result3.isSuccess should be(true)
   }
 
   it should "be serializable" in {
@@ -273,7 +271,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (bytes: Array[Byte]) =>
-      Try(deserialize[Boolean](bytes)).isSuccess should be(true)
+      Result.safely(deserialize[Boolean](bytes)).isSuccess should be(true)
       deserialize[Boolean](bytes).contains(null) should be(false)
     }
   }
@@ -285,7 +283,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (p: Boolean) =>
-      Try(serialize(p)).isSuccess should be(true)
+      Result.safely(serialize(p)).isSuccess should be(true)
       serialize(p) == null should be(false)
     }
   }
@@ -296,12 +294,12 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bool2: Boolean = true
 
     // when
-    val result1: Option[Boolean] = deserialize(serialize(bool1))
-    val result2: Option[Boolean] = deserialize(serialize(bool2))
+    val result1: Result[Boolean] = deserialize(serialize(bool1))
+    val result2: Result[Boolean] = deserialize(serialize(bool2))
 
     // then
-    result1.get should be(bool1)
-    result2.get should be(bool2)
+    result1.getOrThrow should be(bool1)
+    result2.getOrThrow should be(bool2)
   }
 
   it should "be reversible in general" in {
@@ -312,7 +310,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     //then
     forAll { (p: Boolean) =>
       val left = deserialize[Boolean](serialize(p))
-      val right = Some(p)
+      val right = Result.safely(p)
       left == right should be(true)
     }
 
@@ -336,14 +334,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes3: Array[Byte] = "".getBytes
 
     // when
-    val result1: Option[Byte] = deserialize(bytes1)
-    val result2: Option[Byte] = deserialize(bytes2)
-    val result3: Option[Byte] = deserialize(bytes3)
+    val result1: Result[Byte] = deserialize(bytes1)
+    val result2: Result[Byte] = deserialize(bytes2)
+    val result3: Result[Byte] = deserialize(bytes3)
 
     // then
-    result1.isDefined should be(false)
-    result2.isDefined should be(true)
-    result3.isDefined should be(false)
+    result1.isSuccess should be(false)
+    result2.isSuccess should be(true)
+    result3.isSuccess should be(false)
   }
 
   it should "be serializable" in {
@@ -362,10 +360,10 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val byte: Byte = 'f'.toByte
 
     // when
-    val result: Option[Byte] = deserialize(serialize(byte))
+    val result: Result[Byte] = deserialize(serialize(byte))
 
     // then
-    result.get should be(byte)
+    result.getOrThrow should be(byte)
   }
 
   it should "be reversible in general" in {
@@ -376,7 +374,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     // then
     forAll { (b: Byte) =>
       val left = deserialize[Byte](serialize(b))
-      val right = Some(b)
+      val right = Result.safely(b)
       left == right should be(true)
     }
 
@@ -397,7 +395,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (bytes: Array[Byte]) =>
-      Try(deserialize[Byte](bytes)).isSuccess should be(true)
+      Result.safely(deserialize[Byte](bytes)).isSuccess should be(true)
       deserialize[Byte](bytes).contains(null) should be(false)
     }
   }
@@ -409,7 +407,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     forAll { (b: Byte) =>
-      Try(serialize(b)).isSuccess should be(true)
+      Result.safely(serialize(b)).isSuccess should be(true)
       serialize(b) == null should be(false)
     }
   }
@@ -423,14 +421,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes3: Array[Byte] = "".getBytes
 
     // when
-    val result1: Option[Char] = deserialize(bytes1)
-    val result2: Option[Char] = deserialize(bytes2)
-    val result3: Option[Char] = deserialize(bytes3)
+    val result1: Result[Char] = deserialize(bytes1)
+    val result2: Result[Char] = deserialize(bytes2)
+    val result3: Result[Char] = deserialize(bytes3)
 
     // then
-    result1.isDefined should be(false)
-    result2.isDefined should be(true)
-    result3.isDefined should be(false)
+    result1.isSuccess should be(false)
+    result2.isSuccess should be(true)
+    result3.isSuccess should be(false)
   }
 
   it should "be serializable" in {
@@ -449,16 +447,16 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val char: Byte = 'f'
 
     // when
-    val result: Option[Char] = deserialize(serialize(char))
+    val result: Result[Char] = deserialize(serialize(char))
 
     // then
-    result.get should be(char)
+    result.getOrThrow should be(char)
   }
 
   it should "be reversible in general" in {
     forAll { (c: Char) =>
       val left = deserialize[Char](serialize(c))
-      val right = Some(c)
+      val right = Result.safely(c)
       left == right should be(true)
     }
     forAll { (bs: Array[Byte]) =>
@@ -472,14 +470,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "never throw or return null when deserializing" in {
     forAll { (bs: Array[Byte]) =>
-      Try(deserialize[Char](bs)).isSuccess should be(true)
+      Result.safely(deserialize[Char](bs)).isSuccess should be(true)
       deserialize[Char](bs).contains(null) should be(false)
     }
   }
 
   it should "never throw or return null when serializing" in {
     forAll { (c: Char) =>
-      Try(serialize(c)).isSuccess should be(true)
+      Result.safely(serialize(c)).isSuccess should be(true)
       serialize(c) == null should be(false)
     }
   }
@@ -493,14 +491,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes3: Array[Byte] = serialize(-4567.567)
 
     // when
-    val result1: Option[Double] = deserialize(bytes1)
-    val result2: Option[Double] = deserialize(bytes2)
-    val result3: Option[Double] = deserialize(bytes3)
+    val result1: Result[Double] = deserialize(bytes1)
+    val result2: Result[Double] = deserialize(bytes2)
+    val result3: Result[Double] = deserialize(bytes3)
 
     // then
-    result1.isDefined should be(true)
-    result2.isDefined should be(true)
-    result3.isDefined should be(true)
+    result1.isSuccess should be(true)
+    result2.isSuccess should be(true)
+    result3.isSuccess should be(true)
   }
 
   it should "be serializable" in {
@@ -523,28 +521,28 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
       scala.math.pow(scala.math.E, scala.math.sqrt(scala.math.Pi))
 
     // when
-    val result1: Option[Double] = deserialize(serialize(doub1))
-    val result2: Option[Double] = deserialize(serialize(doub2))
-    val result3: Option[Double] = deserialize(serialize(doub3))
-    val result4: Option[Double] = deserialize(serialize(doub4))
+    val result1: Result[Double] = deserialize(serialize(doub1))
+    val result2: Result[Double] = deserialize(serialize(doub2))
+    val result3: Result[Double] = deserialize(serialize(doub3))
+    val result4: Result[Double] = deserialize(serialize(doub4))
 
     // then
-    result1.get should be(doub1)
-    result2.get should be(doub2)
-    result3.get should be(doub3)
-    result4.get should be(doub4)
+    result1.getOrThrow should be(doub1)
+    result2.getOrThrow should be(doub2)
+    result3.getOrThrow should be(doub3)
+    result4.getOrThrow should be(doub4)
   }
 
   it should "never throw or return null when deserializing" in {
     forAll { (bs: Array[Byte]) =>
-      Try(deserialize[Double](bs)).isSuccess should be(true)
+      Result.safely(deserialize[Double](bs)).isSuccess should be(true)
       deserialize[Double](bs).contains(null) should be(false)
     }
   }
 
   it should "never throw or return null when serializing" in {
     forAll { (x: Double) =>
-      Try(serialize(x)).isSuccess should be(true)
+      Result.safely(serialize(x)).isSuccess should be(true)
       serialize(x) == null should be(false)
     }
   }
@@ -552,7 +550,7 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
   it should "be reversible in general" in {
     forAll { (x: Double) =>
       val left = deserialize[Double](serialize(x))
-      val right = Some(x)
+      val right = Result.safely(x)
       left == right should be(true)
     }
     forAll { (bs: Array[Byte]) =>
@@ -573,14 +571,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes3: Array[Byte] = serialize(-4567.567f)
 
     // when
-    val result1: Option[Float] = deserialize(bytes1)
-    val result2: Option[Float] = deserialize(bytes2)
-    val result3: Option[Float] = deserialize(bytes3)
+    val result1: Result[Float] = deserialize(bytes1)
+    val result2: Result[Float] = deserialize(bytes2)
+    val result3: Result[Float] = deserialize(bytes3)
 
     // then
-    result1.isDefined should be(true)
-    result2.isDefined should be(true)
-    result3.isDefined should be(true)
+    result1.isSuccess should be(true)
+    result2.isSuccess should be(true)
+    result3.isSuccess should be(true)
   }
 
   it should "be serializable" in {
@@ -603,16 +601,16 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
       scala.math.pow(scala.math.E, scala.math.sqrt(scala.math.Pi)).toFloat
 
     // when
-    val result1: Option[Float] = deserialize(serialize(float1))
-    val result2: Option[Float] = deserialize(serialize(float2))
-    val result3: Option[Float] = deserialize(serialize(float3))
-    val result4: Option[Float] = deserialize(serialize(float4))
+    val result1: Result[Float] = deserialize(serialize(float1))
+    val result2: Result[Float] = deserialize(serialize(float2))
+    val result3: Result[Float] = deserialize(serialize(float3))
+    val result4: Result[Float] = deserialize(serialize(float4))
 
     // then
-    result1.get should be(float1)
-    result2.get should be(float2)
-    result3.get should be(float3)
-    result4.get should be(float4)
+    result1.getOrThrow should be(float1)
+    result2.getOrThrow should be(float2)
+    result3.getOrThrow should be(float3)
+    result4.getOrThrow should be(float4)
   }
 
   behavior of "Long"
@@ -624,14 +622,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes3: Array[Byte] = serialize(-4567.567f)
 
     // when
-    val result1: Option[Long] = deserialize(bytes1)
-    val result2: Option[Long] = deserialize(bytes2)
-    val result3: Option[Long] = deserialize(bytes3)
+    val result1: Result[Long] = deserialize(bytes1)
+    val result2: Result[Long] = deserialize(bytes2)
+    val result3: Result[Long] = deserialize(bytes3)
 
     // then
-    result1.isDefined should be(true)
-    result2.isDefined should be(true)
-    result3.isDefined should be(false)
+    result1.isSuccess should be(true)
+    result2.isSuccess should be(true)
+    result3.isSuccess should be(false)
   }
 
   it should "be serializable" in {
@@ -651,12 +649,12 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val long2: Long = -456l
 
     // when
-    val result1: Option[Long] = deserialize(serialize(long1))
-    val result2: Option[Long] = deserialize(serialize(long2))
+    val result1: Result[Long] = deserialize(serialize(long1))
+    val result2: Result[Long] = deserialize(serialize(long2))
 
     // then
-    result1.get should be(long1)
-    result2.get should be(long2)
+    result1.getOrThrow should be(long1)
+    result2.getOrThrow should be(long2)
   }
 
   behavior of "Unit"
@@ -668,14 +666,14 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val bytes3: Array[Byte] = serialize("_")
 
     // when
-    val result1: Option[Unit] = deserialize(bytes1)
-    val result2: Option[Unit] = deserialize(bytes2)
-    val result3: Option[Unit] = deserialize(bytes3)
+    val result1: Result[Unit] = deserialize(bytes1)
+    val result2: Result[Unit] = deserialize(bytes2)
+    val result3: Result[Unit] = deserialize(bytes3)
 
     // then
-    result1.isDefined should be(true)
-    result2.isDefined should be(false)
-    result3.isDefined should be(false)
+    result1.isSuccess should be(true)
+    result2.isSuccess should be(false)
+    result3.isSuccess should be(false)
   }
 
   it should "be serializable" in {
@@ -697,11 +695,11 @@ class SerializationTest extends FlatSpec with Matchers with PropertyChecks {
     val u2: Unit = ()
 
     // when
-    val result1: Option[Unit] = deserialize(serialize(u1))
-    val result2: Option[Unit] = deserialize(serialize(u2))
+    val result1: Result[Unit] = deserialize(serialize(u1))
+    val result2: Result[Unit] = deserialize(serialize(u2))
 
     // then
-    result1.get should be(u1)
-    result1.get should be(u2)
+    result1.getOrThrow should be(u1)
+    result2.getOrThrow should be(u2)
   }
 }

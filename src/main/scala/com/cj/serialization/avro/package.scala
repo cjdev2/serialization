@@ -14,25 +14,25 @@ package object avro {
     * @return Avro-compliant byte-array representation
     */
   def serializeAvro(record: SpecificRecord): Array[Byte] =
-    SerializableSpecificRecord.serialize(record)
+    SerializeSpecificRecord.serialize(record)
 
   /**
-    * This instance of [[Serializable]]`[SpecificRecord]` is sufficient
+    * This instance of [[Serialize]]`[SpecificRecord]` is sufficient
     * for serializing any child of `SpecificRecord`, i.e. serialization
     * of Avro-generated classes should Just Work™.
     *
     * Usage:
     * {{{
     *   import com.cj.serialization.serialize
-    *   import com.cj.serialization.avro.SerializableSpecificRecord
+    *   import com.cj.serialization.avro.SerializeSpecificRecord
     *   import your.awesome.avro.record.Awesome
     *
     *   val awesome: Awesome = ...
     *   val bytes: Array[Byte] = serialize(awesome)
     * }}}
     */
-  implicit object SerializableSpecificRecord
-    extends Serializable[SpecificRecord] {
+  implicit object SerializeSpecificRecord
+    extends Serialize[SpecificRecord] {
 
     private val factory = EncoderFactory.get
 
@@ -60,20 +60,20 @@ package object avro {
   def deserializeAvro[T >: Null <: SpecificRecord](
                                                     schema: Schema,
                                                     bytes: Array[Byte]
-                                                  ): Option[T] =
-    new AvroDeserializable[T](schema).deserialize(bytes)
+                                                  ): Result[T] =
+    new DeserializeSpecificRecord[T](schema).deserialize(bytes)
 
   /**
-    * Create a [[Deserializable]]`[T]` instance for an avro-generated class `T`.
+    * Create a [[Deserialize]]`[T]` instance for an avro-generated class `T`.
     *
     * Usage:
     * {{{
     *   import com.cj.serialization.deserialize
-    *   import com.cj.serialization.avro.AvroDeserializable
+    *   import com.cj.serialization.avro.DeserializeSpecificRecord
     *   import your.awesome.avro.record.Awesome
     *
-    *   implicit object DeserializableAwesome
-    *     extends AvroDeserializable[Awesome](Awesome.getClassSchema)
+    *   implicit object DeserializeAwesome
+    *     extends DeserializeSpecificRecord[Awesome](Awesome.getClassSchema)
     *
     *   val bytes: Array[Byte] = ...
     *   val optAwesome: Option[Awesome] = deserialize(bytes)
@@ -82,17 +82,16 @@ package object avro {
     * @param schema The avro-generated schema for `T` (usually `T.getClassSchema`)
     * @tparam T The avro-generated class you'd like to be able to deserialize
     */
-  class AvroDeserializable[T >: Null <: SpecificRecord](schema: Schema)
-    extends Deserializable[T] {
+  class DeserializeSpecificRecord[T >: Null <: SpecificRecord](schema: Schema)
+    extends Deserialize[T] {
 
     private val reader = new SpecificDatumReader[T](schema)
     private val factory = DecoderFactory.get
 
-    def deserialize(bytes: Array[Byte]): Option[T] = {
+    def deserialize(bytes: Array[Byte]): Result[T] = {
       val decoder = factory.binaryDecoder(bytes, null)
 
-      scala.util.Try(reader.read(null, decoder))
-        .toOption.flatMap(Option.apply)
+      Result.safely(reader.read(null, decoder))
     }
   }
 }

@@ -3,9 +3,8 @@ import org.scalatest.prop.PropertyChecks
 
 class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
-  import argonaut.{Argonaut, Json}
   import com.cj.serialization._
-  import com.cj.serialization.json._
+  import com.cj.serialization.json._, JsonImplicits._, JsonCodec._
   import Fixtures._
 
   "JsonDemo" should "not be out of date" in {
@@ -22,9 +21,9 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     // given
 
     // when
-    val res1 = serialize(Json.jNull)
-    val res2 = serialize(Json.jBool(false))
-    val res3 = serialize(Json.jBool(true))
+    val res1 = serialize(Json.nul)
+    val res2 = serialize(Json.bool(false))
+    val res3 = serialize(Json.bool(true))
 
     // then
     res1 should be(serialize("null"))
@@ -34,7 +33,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize JSON numbers correctly" in {
     // given
-    val jnum = Json.jNumber(0l)
+    val jnum = Json.long(0l)
 
     // when
     val res = serialize(jnum)
@@ -45,7 +44,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize an empty JSON strings correctly" in {
     // given
-    val jstr = Json.jString("")
+    val jstr = Json.string("")
 
     // when
     val res = serialize(jstr)
@@ -56,7 +55,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize an arbitrary (lol!) JSON strings correctly" in {
     // given
-    val jstr = Json.jString("arbitrary")
+    val jstr = Json.string("arbitrary")
 
     // when
     val res = serialize(jstr)
@@ -67,7 +66,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize JSON strings with wonky characters" in {
     // given
-    val jstr = Json.jString("Pokémon, Go!")
+    val jstr = Json.string("Pokémon, Go!")
 
     // when
     val res = serialize(jstr)
@@ -78,7 +77,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize an empty JSON array correctly" in {
     // given
-    val arr = Json.array()
+    val arr = Json.emptyArr
 
     // when
     val res = serialize(arr)
@@ -89,7 +88,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize an empty JSON object correctly" in {
     // given
-    val obj = Json()
+    val obj = Json.emptyObj
 
     // when
     val res = serialize(obj)
@@ -100,7 +99,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize a populated JSON array correctly" in {
     // given
-    val arr = Json.array(Json.jNumber(0l), Json.jString(""))
+    val arr = Json.arr(0, "")
 
     // when
     val res = serialize(arr)
@@ -111,9 +110,9 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "serialize a populated JSON object correctly" in {
     // given
-    val obj = Json(
-      "value" -> Json.jNumber(0l),
-      "added" -> Json.jString("")
+    val obj = Json.obj(
+      "value" -> 0,
+      "added" -> ""
     )
     val exp = serialize("""{"value":0,"added":""}""")
 
@@ -187,8 +186,9 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     )
 
     // when: JsonSerializerFromCodec creates a JsonSerializer[Pair]
-    implicit val personCodec: CodecJson[Person] =
-      Argonaut.casecodec4(Person.apply, Person.unapply)("name", "age", "things", "mother")
+    implicit val personCodec: JsonCodec[Person] = JsonCodec(
+      argonaut.Argonaut.casecodec4(Person.apply, Person.unapply)("name", "age", "things", "mother")
+    )
 
     // then
     personTestCases.foreach(leftInverseTestCase[Person])
@@ -213,16 +213,13 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     )
 
     // when: JsonSerializerFromCodec creates a JsonSerializer[Pair]
-    implicit val pairCodec: CodecJson[Pair] = {
-
+    implicit val pairCodec: JsonCodec[Pair] = JsonCodec({
       implicit def keyCodec =
-        Argonaut.casecodec1(Key.apply, Key.unapply)("get")
-
+        argonaut.Argonaut.casecodec1(Key.apply, Key.unapply)("get")
       implicit def valueCodec =
-        Argonaut.casecodec1(Value.apply, Value.unapply)("get")
-
-      Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
-    }
+        argonaut.Argonaut.casecodec1(Value.apply, Value.unapply)("get")
+      argonaut.Argonaut.casecodec2(Pair.apply, Pair.unapply)("key", "value")
+    })
 
     // then
     pairTestCases.foreach(leftInverseTestCase[Pair])
@@ -264,19 +261,20 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
                        greeting: Option[String]
                      )
 
-    implicit val personCodec: CodecJson[Person] =
+    implicit val personCodec: JsonCodec[Person] = JsonCodec(
       argonaut.Argonaut.casecodec4(Person.apply, Person.unapply)(
         "name", "age", "address", "greeting"
       )
+    )
 
     // then: you can deserialize and work with JSON arrays of those
     // structs without creating another JsonSerializer specifically
     // for JSON arrays
-    val people = fromJsonString[List[Person]](input).getOrElse(Nil)
+    val people = parseJson[List[Person]](input).getOrElse(Nil)
     val nice = people.map(person =>
       person.copy(greeting = person.greeting.orElse(Some("Hello good sir!")))
     )
-    val output = toPrettyJsonString(nice)
+    val output = prettyJson(nice)
     assert(
       output ==
         """[
@@ -308,26 +306,28 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
   it should "satisfy the contract for general arguments" in {
     // given
-    implicit val personCodec: CodecJson[Person] =
-      Argonaut.casecodec4(Person.apply, Person.unapply)(
+    implicit val personCodec: JsonCodec[Person] = JsonCodec(
+      argonaut.Argonaut.casecodec4(Person.apply, Person.unapply)(
         "name", "age", "things", "mother"
       )
+    )
 
     forAll { (n: String, a: Int, ts: List[String], mo: Option[String]) =>
 
       val person = Person(n, a, ts, mo)
 
       // when/then
-      deserialize[Person](serialize(person)) should be(Some(person))
+      deserialize[Person](serialize(person)) should be(Result.safely(person))
     }
   }
 
   it should "be thread safe" in {
     // given
-    implicit val personCodec: CodecJson[Person] =
-      Argonaut.casecodec4(Person.apply, Person.unapply)(
+    implicit val personCodec: JsonCodec[Person] = JsonCodec(
+      argonaut.Argonaut.casecodec4(Person.apply, Person.unapply)(
         "name", "age", "things", "mother"
       )
+    )
 
     forAll { (ps: List[(String, Int, List[String], Option[String])]) =>
 
@@ -366,8 +366,8 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     )
 
     // when: JsonSerializer creates a JsonSerializer[Pair]
-    implicit val pairSerializer: JsonSerializer[Pair] =
-      JsonSerializer[Pair](to = pairToJson, from = jsonToPair)
+    implicit val pairSerializer: JsonCodec[Pair] =
+      JsonCodec[Pair](to = pairToJson(_), from = jsonToPair(_))
 
     // then
     pairTestCases.foreach(leftInverseTestCase[Pair])
@@ -384,9 +384,9 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
     val pair: Pair = Pair(Key(5),Value("foo"))
 
-    val jsonPair1: Json = Json(
-      "key" -> Json("get" -> Json.jNumber(5)),
-      "value" -> Json("get" -> Json.jString("foo"))
+    val jsonPair1: Json = Json.obj(
+      "key" -> Json.obj("get" -> 5),
+      "value" -> Json.obj("get" -> "foo")
     )
 
     val stringPair1: String =
@@ -397,23 +397,23 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
     val bytesPair1: Array[Byte] = stringPair1.getBytes("UTF-8")
 
-    def pairToJson(pair: Pair): Json = Json(
-      "key" -> Json.jNumber(pair.key.get),
-      "value" -> Json.jString(pair.value.get)
+    def pairToJson(pair: Pair): Json = Json.obj(
+      "key" -> pair.key.get,
+      "value" -> pair.value.get
     )
 
-    def jsonToPair(json: Json): Option[Pair] = for {
+    def jsonToPair(json: Json): Result[Pair] = Result.fromOption(for {
       propList <- json.assoc
-      keyJson <- propList.toMap.get("key")
+      keyJson <- propList.get("key")
       keyJNum <- keyJson.number
-      key <- keyJNum.toInt
-      valueJson <- propList.toMap.get("value")
+      key <- scala.util.Try(keyJNum.toInt).toOption.flatMap(Option.apply)
+      valueJson <- propList.get("value")
       value <- valueJson.string
-    } yield Pair(Key(key), Value(value))
+    } yield Pair(Key(key), Value(value)), "Failed parsing Json to Pair")
 
-    val jsonPair2: Json = Json(
-      "key" -> Json.jNumber(5),
-      "value" -> Json.jString("foo")
+    val jsonPair2: Json = Json.obj(
+      "key" -> 5,
+      "value" -> "foo"
     )
 
     val stringPair2: String = """{"key":5,"value":"foo"}"""
@@ -436,60 +436,43 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     val personBatman: Person =
       Person("Batman",38,List("Batarang", "Batmobile"),None)
 
-    val jsonTim: Json = Json(
-      "name" -> Json.jString("Tim Drake"),
-      "age" -> Json.jNumber(19),
-      "things" -> Json.array(
-        Json.jString("Bo")
-      ),
-      "mother" -> Json.jString("Janet Drake")
+    val jsonTim: Json = Json.obj(
+      "name" -> "Tim Drake",
+      "age" -> 19,
+      "things" -> Json.arr("Bo"),
+      "mother" -> "Janet Drake"
     )
 
-    val jsonBruce: Json = Json(
-      "name" -> Json.jString("Bruce Wayne"),
-      "age" -> Json.jNumber(38),
-      "things" -> Json.array(
-        Json.jString("Money"),
-        Json.jString("Alfred")
-      ),
-      "mother" -> Json.jString("Martha Wayne")
+    val jsonBruce: Json = Json.obj(
+      "name" -> "Bruce Wayne",
+      "age" -> 38,
+      "things" -> Json.arr("Money", "Alfred"),
+      "mother" -> "Martha Wayne"
     )
 
-    val jsonBatman: Json = Json(
-      "name" -> Json.jString("Batman"),
-      "age" -> Json.jNumber(38),
-      "things" -> Json.array(
-        Json.jString("Batarang"),
-        Json.jString("Batmobile")
-      )
+    val jsonBatman: Json = Json.obj(
+      "name" -> "Batman",
+      "age" -> 38,
+      "things" -> Json.arr("Batarang", "Batmobile")
     )
 
-    val jsonNested: Json = Json(
-      "this" -> Json.jString("that"),
-      "those" -> Json.array(
-        Json.jString("these"),
-        Json.jString("others")
-      ),
+    val jsonNested: Json = Json.obj(
+      "this" -> "that",
+      "those" -> Json.arr("these", "others"),
       "me" -> jsonTim,
-      "them" -> Json.array(
-        jsonBruce,
-        jsonBatman
-      )
+      "them" -> Json.arr(jsonBruce, jsonBatman)
     )
 
-    val jsonWithCharacter: Json = Json(
-      "name" -> Json.jString("Daniel"),
-      "favorite_game" -> Json.jString("¡Pokémon Snap!")
+    val jsonWithCharacter: Json = Json.obj(
+      "name" -> "Daniel",
+      "favorite_game" -> "¡Pokémon Snap!"
     )
 
-    val jsonBruceFrench: Json = Json(
-      "prénome" -> Json.jString("Bruce Wayne"),
-      "âge" -> Json.jNumber(38),
-      "des_choses" -> Json.array(
-        Json.jString("Le Argent"),
-        Json.jString("Alfred")
-      ),
-      "mère" -> Json.jString("Martha Wayne")
+    val jsonBruceFrench: Json = Json.obj(
+      "prénome" -> "Bruce Wayne",
+      "âge" -> 38,
+      "des_choses" -> Json.arr("Le Argent", "Alfred"),
+      "mère" -> "Martha Wayne"
     )
 
     val stringTim: String =
@@ -575,22 +558,22 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
     val bytesBruceFrench: Array[Byte] = stringBruceFrench.getBytes("UTF-8")
 
-    def leftInverseTestCase[T: JsonSerializer](t: T): Unit = {
+    def leftInverseTestCase[T: JsonCodec](t: T): Unit = {
       assert(
         fromJson[T](toJson[T](t)).contains(t)
       )
       assert(
-        fromJsonString[T](toJsonString[T](t)).contains(t)
+        parseJson[T](printJson[T](t)).contains(t)
       )
       assert(
-        fromJsonString[T](toPrettyJsonString[T](t)).contains(t)
+        parseJson[T](prettyJson[T](t)).contains(t)
       )
       assert(
         deserialize[T](serialize[T](t)).contains(t)
       )
     }
 
-    def jsonRightPseudoInverseTestCase[T: JsonSerializer](json: Json)
+    def jsonRightPseudoInverseTestCase[T: JsonCodec](json: Json)
     : Unit = {
       assert(
         fromJson[T](json)
@@ -600,23 +583,23 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
       )
     }
 
-    def stringRightPseudoInverseTestCase[T: JsonSerializer](string: String)
+    def stringRightPseudoInverseTestCase[T: JsonCodec](string: String)
     : Unit = {
       assert(
-        fromJsonString[T](string)
-          .map(toJsonString[T])
-          .flatMap(fromJsonString[T])
-          == fromJsonString[T](string)
+        parseJson[T](string)
+          .map(printJson[T])
+          .flatMap(parseJson[T])
+          == parseJson[T](string)
       )
       assert(
-        fromJsonString[T](string)
-          .map(toPrettyJsonString[T])
-          .flatMap(fromJsonString[T])
-          == fromJsonString[T](string)
+        parseJson[T](string)
+          .map(prettyJson[T])
+          .flatMap(parseJson[T])
+          == parseJson[T](string)
       )
     }
 
-    def bytesRightPseudoInverseTestCase[T: JsonSerializer](bytes: Array[Byte])
+    def bytesRightPseudoInverseTestCase[T: JsonCodec](bytes: Array[Byte])
     : Unit = {
       assert(
         deserialize[T](bytes)

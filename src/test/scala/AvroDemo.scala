@@ -14,15 +14,15 @@ object AvroDemo extends App {
 
   // Avro knows how to clean up its own mess, it just
   // needs a tiny bit of help from you, the programmer
-  implicit object DeserializableTestRecord
-    extends AvroDeserializable[TestRecord](TestRecord.getClassSchema)
+  implicit object DeserializeSpecificRecordTestRecord
+    extends DeserializeSpecificRecord[TestRecord](TestRecord.getClassSchema)
 
   // now, `deserialize[TestRecord]: Array[Byte] => Option[TestRecord]`
   // is in scope and works as expected
 
   // Avro records survive the round trip
   assert(
-    deserialize[TestRecord](serializedByUs).get == record
+    deserialize[TestRecord](serializedByUs).getOrThrow == record
   )
 
   // Avro clients agnostic of this library can
@@ -46,7 +46,7 @@ object AvroDemo extends App {
       .serialize(newRecord)
 
   val deserializedByUs: Option[TestRecord] =
-    deserialize(serializedByThem)
+    deserialize(serializedByThem).success
 
   assert(
     deserializedByUs.get == newRecord

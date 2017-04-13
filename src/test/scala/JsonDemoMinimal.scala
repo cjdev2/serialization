@@ -11,27 +11,24 @@ object JsonDemoMinimal extends App {
   // underscore, "_", in your import statements and to declare your serializers
   // explicit instead of implicit. This short demo illustrates those practices.
 
-  import com.cj.serialization.json.{CodecJson, JsonSerializer, jsonSerializerFromCodec}
-  import com.cj.serialization.thrift.SerializableThriftStruct
+  import com.cj.serialization.json.JsonCodec
+  import com.cj.serialization.thrift.SerializeThriftStruct
   import local.test.serialization.thrift.scala.TestRecord
 
-  val ThriftS = SerializableThriftStruct
+  val ThriftS = SerializeThriftStruct
 
-  // Make a codec. The easiest way is to use Argonaut's "caseCodec" functions
-  val testRecordCodec: CodecJson[TestRecord] =
+  // Make a codec. The easiest way is to use Argonaut's "casecodec" functions
+  val testRecordCodec: JsonCodec[TestRecord] = JsonCodec(
     argonaut.Argonaut.casecodec2[String, Long, TestRecord](
       TestRecord.apply,
       testRecord => TestRecord.unapply(testRecord).map(p => (p._1, p._2))
     )("foo", "bar")
+  )
 
-  // Make a JsonSerializer.
-  val testRecordJsonSerializer: JsonSerializer[TestRecord] =
-    jsonSerializerFromCodec(testRecordCodec)
-
-  // Use the serializer on your record
+  // Use the codec on your record
   val record = TestRecord("Tim Drake", 19)
   assert(
-    testRecordJsonSerializer.toPrettyJsonString(record) ==
+    testRecordCodec.prettyJson(record) ==
       """{
         |  "foo" : "Tim Drake",
         |  "bar" : 19
@@ -45,14 +42,14 @@ object JsonDemoMinimal extends App {
   val batmanString =
     """{"foo":"Batman","bar":38}"""
   assert(
-    testRecordJsonSerializer.fromJsonString(batmanString).contains(
+    testRecordCodec.parseJson(batmanString).contains(
       TestRecord("Batman", 38)
     )
   )
   assert(
-    testRecordJsonSerializer.fromJsonString(batmanString)
+    testRecordCodec.parseJson(batmanString)
       .map(ThriftS.serialize)
-      .get.mkString(",")
+      .getOrThrow.mkString(",")
     == "11,0,1,0,0,0,6,66,97,116,109,97,110,10,0,2,0,0,0,0,0,0,0,38,0,0,0,0,0,0,0,0"
   )
 }

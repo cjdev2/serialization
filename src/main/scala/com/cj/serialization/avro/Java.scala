@@ -1,4 +1,5 @@
-package com.cj.serialization.avro
+package com.cj.serialization
+package avro
 
 import java.util.Optional
 
@@ -19,7 +20,7 @@ object Java {
     * @return Avro-compliant byte-array representation
     */
   def serializeAvro(record: SpecificRecord) : Array[Byte] =
-    SerializableSpecificRecord.serialize(record)
+    SerializeSpecificRecord.serialize(record)
 
   /**
     * A class to represent a serializer for the given class `T` extending
@@ -28,9 +29,9 @@ object Java {
     * however, this class is included in case a class representation is
     * necessary to satisfy some API.
     */
-  class AvroSerializerJ[T <: SpecificRecord] extends SerializerJ[T] {
+  class AvroSerializeJ[T <: SpecificRecord] extends SerializeJ[T] {
     def serialize(t: T): Array[Byte] =
-      SerializableSpecificRecord.serialize(t)
+      SerializeSpecificRecord.serialize(t)
   }
 
   /**
@@ -47,9 +48,11 @@ object Java {
                                                     schema: Schema,
                                                     bytes: Array[Byte]
                                                   ): Optional[T] =
-    new AvroDeserializable[T](schema)
-      .deserialize(bytes)
-      .fold(Optional.empty[T])(t => Optional.of[T](t))
+    new DeserializeSpecificRecord[T](schema)
+      .deserialize(bytes).fold(
+        withFailure = _ => Optional.empty[T],
+        withSuccess = t => Optional.of(t)
+      )
 
   /**
     * A class to represent a deserializer for the given class `T` extending
@@ -61,13 +64,15 @@ object Java {
     * @param schema A schema representing the class `T`.
     * @tparam T The class you are expecting your bytes to conform to.
     */
-  class AvroDeserializerJ[T >: Null <: SpecificRecord](schema: Schema)
-    extends DeserializerJ[T] {
+  class AvroDeserializeJ[T >: Null <: SpecificRecord](schema: Schema)
+    extends DeserializeJ[T] {
 
-    private object Deserializer extends AvroDeserializable[T](schema)
+    private object DeserializeSpecificRecord extends DeserializeSpecificRecord[T](schema)
 
     def deserialize(bytes: Array[Byte]): Optional[T] =
-      Deserializer.deserialize(bytes)
-        .fold(Optional.empty[T])(t => Optional.of[T](t))
+      DeserializeSpecificRecord.deserialize(bytes).fold(
+        withFailure = _ => Optional.empty[T],
+        withSuccess = v => Optional.of(v)
+      )
   }
 }
