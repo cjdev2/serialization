@@ -83,9 +83,9 @@ sealed abstract class Json extends Product with Serializable {
     case _ => None
   }
 
-  def print: String = toArgonaut(this).nospaces
+  def print: String = JsonS.print(this)
 
-  def pretty: String = toArgonaut(this).spaces2
+  def pretty: String = JsonS.pretty(this)
 }
 
 sealed trait ToJson {
@@ -95,6 +95,8 @@ sealed trait ToJson {
 object Json {
 
   import JsonS._
+
+  def parse(raw: String): Result[Json] = JsonS.parse(raw)
 
   def emptyObj: Json =
     assoc(Map())
@@ -106,12 +108,6 @@ object Json {
 
   def arr(elements: ToJson*): Json =
     array(elements.map(_.toJson).toList)
-
-  def parse(raw: String): Result[Json] =
-    argonaut.Parse.parse(raw).fold(
-      msg => Result.failure(msg),
-      ajson => Result.safely(fromArgonaut(ajson))
-    )
 
   def nul: Json = JNull
   def bool(p: Boolean): Json = JBool(p)
@@ -189,14 +185,14 @@ object JsonImplicits {
 
 private[json] object JsonS {
 
-  import argonaut.{Json => AJson, JsonObject}
-
   case object JNull extends Json
   case class JBool(get: Boolean) extends Json
   case class JNumber(get: BigDecimal) extends Json
   case class JString(get: String) extends Json
   case class JArray(get: List[Json]) extends Json
   case class JAssoc(get: Map[String, Json]) extends Json
+
+  import argonaut.{Json => AJson, JsonObject}
 
   def fromArgonaut(ajson: AJson): Json = ajson.fold(
     jsonNull = Json.nul,
@@ -217,4 +213,14 @@ private[json] object JsonS {
     withAssoc = assoc => AJson.jObject(JsonObject.fromTraversableOnce(
       assoc.map({case (k, v) => (k, toArgonaut(v))})))
   )
+
+  def print(json: Json): String = toArgonaut(json).nospaces
+
+  def pretty(json: Json): String = toArgonaut(json).spaces2
+
+  def parse(raw: String): Result[Json] =
+    argonaut.Parse.parse(raw).fold(
+      msg => Result.failure(msg),
+      ajson => Result.safely(fromArgonaut(ajson))
+    )
 }

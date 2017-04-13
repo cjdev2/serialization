@@ -20,6 +20,7 @@
         <libthrift_version>0.9.3</libthrift_version>
         <scrooge-core_version>4.11.0</scrooge-core_version>
         <argonaut_version>6.2</argonaut_version>
+        <argonaut-shapeless_version>1.2.0-M4</argonaut-shapeless_version>
         <snakeyaml_version>1.18</snakeyaml_version>
         <scrooge-maven-plugin_version>4.11.0</scrooge-maven-plugin_version>
         <avro-maven-plugin_version>1.8.1</avro-maven-plugin_version>
@@ -70,6 +71,13 @@
             <groupId>io.argonaut</groupId>
             <artifactId>argonaut_${scala-major_version}</artifactId>
             <version>${argonaut_version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.alexarchambault</groupId>
+            <artifactId>
+                argonaut-shapeless_${argonaut_version}_${scala-major_version}
+            </artifactId>
+            <version>${argonaut-shapeless_version}</version>
         </dependency>
         <dependency>
             <groupId>org.yaml</groupId>

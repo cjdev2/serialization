@@ -11,10 +11,6 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     JsonDemo.main(args = Array[String]())
   }
 
-  "JsonDemoMinimal" should "not be out of date" in {
-    JsonDemoMinimal.main(args = Array[String]())
-  }
-
   behavior of "JsonSerializerJson"
 
   it should "serialize JSON constants correctly" in {
