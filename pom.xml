@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>serialization</artifactId>
-    <version>1.2</version>
+    <version>1.3-SNAPSHOT</version>
 
     <properties>
         <java-source_version>1.8</java-source_version>
