@@ -5,24 +5,23 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.cj</groupId>
-    <artifactId>serialization</artifactId>
+    <artifactId>serialization_2.11</artifactId>
     <version>1.3-SNAPSHOT</version>
 
     <properties>
         <java-source_version>1.8</java-source_version>
         <java-target_version>1.8</java-target_version>
         <scala-major_version>2.11</scala-major_version>
-        <scala-major-minor_version>2.11.8</scala-major-minor_version>
-        <scalaz-core_version>7.2.10</scalaz-core_version>
-        <scalatest_version>3.0.1</scalatest_version>
+        <scala-major-minor_version>2.11.11</scala-major-minor_version>
+        <scalaz-core_version>7.2.11</scalaz-core_version>
+        <scalatest_version>3.0.3</scalatest_version>
         <scalacheck_version>1.13.5</scalacheck_version>
         <avro_version>1.8.1</avro_version>
-        <libthrift_version>0.9.3</libthrift_version>
-        <scrooge-core_version>4.11.0</scrooge-core_version>
+        <libthrift_version>0.10.0</libthrift_version>
+        <scrooge-core_version>4.16.0</scrooge-core_version>
         <argonaut_version>6.2</argonaut_version>
-        <argonaut-shapeless_version>1.2.0-M4</argonaut-shapeless_version>
         <snakeyaml_version>1.18</snakeyaml_version>
-        <scrooge-maven-plugin_version>4.11.0</scrooge-maven-plugin_version>
+        <scrooge-maven-plugin_version>4.16.0</scrooge-maven-plugin_version>
         <avro-maven-plugin_version>1.8.1</avro-maven-plugin_version>
         <maven-compiler-plugin_version>3.6.1</maven-compiler-plugin_version>
         <scala-maven-plugin_version>3.2.2</scala-maven-plugin_version>
@@ -71,13 +70,6 @@
             <groupId>io.argonaut</groupId>
             <artifactId>argonaut_${scala-major_version}</artifactId>
             <version>${argonaut_version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.alexarchambault</groupId>
-            <artifactId>
-                argonaut-shapeless_${argonaut_version}_${scala-major_version}
-            </artifactId>
-            <version>${argonaut-shapeless_version}</version>
         </dependency>
         <dependency>
             <groupId>org.yaml</groupId>

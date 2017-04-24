@@ -1,8 +1,8 @@
 package com.cj.serialization
 
-import com.cj.serialization.json.Json
-
 package object yaml {
+
+  import com.cj.serialization.json.Json
 
   trait YamlCodec[T] extends Serialize[T] with Deserialize[T] {
 
