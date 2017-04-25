@@ -98,6 +98,8 @@ object Json {
 
   def parse(raw: String): Result[Json] = JsonS.parse(raw)
 
+  def apply(x: ToJson): Json = x.toJson
+
   def emptyObj: Json =
     assoc(Map())
 
