@@ -10,13 +10,13 @@ object SerializationDemo extends App {
   }
 
   implicit object DeserializeFoo extends Deserialize[Foo] {
-    def deserialize(bytes: Array[Byte]): Result[Foo] = {
+    def deserialize(bytes: Array[Byte]): Option[Foo] = {
       val string: String = new String(bytes)
       val regex = "Foo\\((\\d+)\\)".r
 
       string match {
-        case regex(int) => Result.safely(Foo(int.toInt))
-        case _ => Result.failure(s"Failed to deserialize $bytes to Foo")
+        case regex(int) => scala.util.Try(Foo(int.toInt)).toOption.flatMap(Option.apply)
+        case _ => None
       }
     }
   }
@@ -35,7 +35,7 @@ object SerializationDemo extends App {
   )
   assert(
     // `deserialize` fails gracefully on incoherent input
-    deserialize[Foo](incoherentBytes).isFailure
+    deserialize[Foo](incoherentBytes).isEmpty
   )
   assert(
     // `fooVal` survives serialization followed by deserialization

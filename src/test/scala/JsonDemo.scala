@@ -168,7 +168,7 @@ object JsonDemo extends App {
   )
   assert(
     // "âge" is absent, so parsing should fail gracefully.
-    fromJson[Person](agelessPerson).isFailure
+    fromJson[Person](agelessPerson).isEmpty
   )
   val nullAgePerson: Json = Json.obj(
     "prénom" -> "Null-age",
@@ -177,7 +177,7 @@ object JsonDemo extends App {
   )
   assert(
     // "âge" is null, so parsing should fail gracefully.
-    fromJson[Person](nullAgePerson).isFailure
+    fromJson[Person](nullAgePerson).isEmpty
   )
 
   // Data shape requirements are rather strict:
@@ -192,7 +192,7 @@ object JsonDemo extends App {
     |}""".stripMargin
   assert(
     // "des_choses" is missing, so fail.
-    parseJson[Person](noThingsPerson).isFailure
+    parseJson[Person](noThingsPerson).isEmpty
   )
   val nullThingsPerson: String =
     """{
@@ -202,7 +202,7 @@ object JsonDemo extends App {
       |}""".stripMargin
   assert(
     // "des_choses" is null, but not an `Option` in our case class, so fail.
-    parseJson[Person](nullThingsPerson).isFailure
+    parseJson[Person](nullThingsPerson).isEmpty
   )
 
   // How does the library (argonaut, really)
@@ -238,15 +238,15 @@ object JsonDemo extends App {
   }
 
   // One direction is always hard.
-  def adtSumFromJson: Json => Result[ADTSum] =
-    json => Result.fromOption(json.assoc flatMap { assoc =>
+  def adtSumFromJson: Json => Option[ADTSum] =
+    json => json.assoc.flatMap { assoc =>
       (assoc.get("bool"), assoc.get("int")) match {
         case (Some(p), None) => p.bool map SBool
         case (None, Some(n)) => n.long flatMap { long =>
           scala.util.Try(long.toInt).toOption } map SInt
         case _ => None
       }
-    }, "failed to parse Json as ADTSum")
+    }
 
   // Use your converters as inputs to `JsonSerializer.apply`.
   // I usually prefer to inline to converters so as not to have them
@@ -262,10 +262,10 @@ object JsonDemo extends App {
     printJson[ADTSum](SInt(12)) == """{"int":12}"""
   )
   assert(
-    parseJson[ADTSum]("""{ "bool" : true }""").getOrThrow == SBool(true)
+    parseJson[ADTSum]("""{ "bool" : true }""").get == SBool(true)
   )
   assert(
-    parseJson[ADTSum]("""{ "int": -2}""").getOrThrow == SInt(-2)
+    parseJson[ADTSum]("""{ "int": -2}""").get == SInt(-2)
   )
   assert(
     deserialize[ADTSum](serialize(SInt(51))).contains(SInt(51))
@@ -352,7 +352,7 @@ object JsonDemo extends App {
         ))
       ),
       // Provide a `Json => Result[ClassyMap]`.
-      from = (json: Json) => Result.fromOption(for {
+      from = (json: Json) => for {
         jsons <- json.array
         assocs <- jsons.map(_.assoc).sequence // This is why we like scalaz.
         pairs <- assocs.map(obj => for {
@@ -362,7 +362,7 @@ object JsonDemo extends App {
           vJson <- obj.get("v")
           v <- vJson.string
         } yield Pair(Key(k), Value(v))).sequence
-      } yield ClassyMap(pairs), "Failed to parse Json as ClassyMap")
+      } yield ClassyMap(pairs)
     )
 
   val mapBytes = serialize(map)
@@ -433,7 +433,7 @@ object JsonDemo extends App {
   // `Wrapper[T]` so long as `T` is serializable/deserializable.
   assert(
     deserialize[Wrapper[Person]](serialize(Wrapper(Person("", 0, Nil, None))))
-      .getOrThrow.runWrapper == Person("", 0, Nil, None)
+      .get.runWrapper == Person("", 0, Nil, None)
   )
   assert(
     prettyJson(Wrapper(tim)) ==
@@ -491,5 +491,5 @@ object JsonDemo extends App {
   println(deserialize[String](Array[Byte](10, 32, 32, 40, 32, 32, 83, 99, 97,
     108, 97, 32, 32, 41, 10, 10, 32, 32, 110, 111, 119, 32, 32, 121, 111, 117,
     39, 114, 101, 10, 32, 32, 32, 32, 112, 108, 97, 121, 105, 110, 103, 10, 32,
-    32, 119, 105, 116, 104, 32, 32, 112, 111, 119, 101, 114, 46, 10)).getOrThrow)
+    32, 119, 105, 116, 104, 32, 32, 112, 111, 119, 101, 114, 46, 10)).get)
 }

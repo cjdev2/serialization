@@ -3,7 +3,6 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class YamlTest extends FlatSpec with Matchers with PropertyChecks {
 
-  import com.cj.serialization.Result
   import com.cj.serialization.yaml._
   import com.cj.serialization.json.Json
   import Fixtures._
@@ -16,7 +15,7 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
     forAll(gen) {
       // given
       (t: T) =>
-        val expected = Result.safely(t)
+        val expected = Some(t)
 
         // when
         val actual = fromYaml[T](toYaml[T](t))
@@ -48,10 +47,10 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
 
     // when
     val result1: Yaml =
-      fromYaml[Yaml](toYaml[Yaml](yaml)).getOrThrow
+      fromYaml[Yaml](toYaml[Yaml](yaml)).get
 
     val result2: Yaml =
-      fromYaml[Yaml](yaml).map(toYaml[Yaml]).flatMap(fromYaml[Yaml]).getOrThrow
+      fromYaml[Yaml](yaml).map(toYaml[Yaml]).flatMap(fromYaml[Yaml]).get
 
     // then
     result1 should be(yaml)
@@ -67,7 +66,7 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
     forAll(gen) {
       // given
       (t: T) =>
-        val expected = Result.safely(t)
+        val expected = Some(t)
 
         // when
         val actual = fromYaml[T](toYaml[T](t))
@@ -100,10 +99,10 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
 
     // when
     val result1: Json =
-      fromYaml[Json](toYaml[Json](json)).getOrThrow
+      fromYaml[Json](toYaml[Json](json)).get
 
     val result2: Json =
-      fromYaml[Json](yaml).map(toYaml[Json]).flatMap(fromYaml[Json]).getOrThrow
+      fromYaml[Json](yaml).map(toYaml[Json]).flatMap(fromYaml[Json]).get
 
     // then
     result1 should be(json)

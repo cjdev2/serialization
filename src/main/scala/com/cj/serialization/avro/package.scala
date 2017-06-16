@@ -60,7 +60,7 @@ package object avro {
   def deserializeAvro[T >: Null <: SpecificRecord](
                                                     schema: Schema,
                                                     bytes: Array[Byte]
-                                                  ): Result[T] =
+                                                  ): Option[T] =
     new DeserializeSpecificRecord[T](schema).deserialize(bytes)
 
   /**
@@ -88,10 +88,9 @@ package object avro {
     private val reader = new SpecificDatumReader[T](schema)
     private val factory = DecoderFactory.get
 
-    def deserialize(bytes: Array[Byte]): Result[T] = {
+    def deserialize(bytes: Array[Byte]): Option[T] = {
       val decoder = factory.binaryDecoder(bytes, null)
-
-      Result.safely(reader.read(null, decoder))
+      safely(reader.read(null, decoder))
     }
   }
 }

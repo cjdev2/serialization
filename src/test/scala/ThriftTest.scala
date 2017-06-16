@@ -108,10 +108,10 @@ class ThriftTest extends FlatSpec with Matchers with PropertyChecks {
       extends DeserializeThriftStruct[TestRecord](TestRecord)
 
     // when: we deserialize a serialized record
-    val result: Result[TestRecord] = deserialize(serialize(record))
+    val result: Option[TestRecord] = deserialize(serialize(record))
 
     // then: the record should survive the round trip
-    result should be(Result.safely(record))
+    result should be(Some(record))
   }
 
   it should "return `Failure(...)` when given bad input" in {
@@ -121,10 +121,10 @@ class ThriftTest extends FlatSpec with Matchers with PropertyChecks {
       extends DeserializeThriftStruct[TestRecord](TestRecord)
 
     // when: we serialize them
-    val result: Result[TestRecord] = deserialize(badBytes)
+    val result: Option[TestRecord] = deserialize(badBytes)
 
     // then: the result should be `None`
-    result.isFailure should be(true)
+    result.isEmpty should be(true)
   }
 
   it should "be usable concurrently" in {
@@ -171,7 +171,7 @@ class ThriftTest extends FlatSpec with Matchers with PropertyChecks {
 
     // then
     serializedThriftRecordsHopefullyDeserializedToScroogeRecords should be(
-      scroogeRecords.map(r => Result.safely(r))
+      scroogeRecords.map(r => Some(r))
     )
   }
 
@@ -188,7 +188,7 @@ class ThriftTest extends FlatSpec with Matchers with PropertyChecks {
       extends DeserializeThriftStruct[TestRecord](TestRecord)
 
     // when: we create a deserializer
-    val deserializer: Array[Byte] => Result[TestRecord] = {
+    val deserializer: Array[Byte] => Option[TestRecord] = {
       val foo = new DeserializeThriftStruct[TestRecord](TestRecord)
       foo.deserialize
     }

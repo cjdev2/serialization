@@ -24,7 +24,7 @@ object AvroDemo extends App {
 
   // Avro records survive the round trip
   assert(
-    deserialize[TestRecord](serializedByUs).getOrThrow == record
+    deserialize[TestRecord](serializedByUs).get == record
   )
 
   // Avro clients agnostic of this library can
@@ -51,7 +51,7 @@ object AvroDemo extends App {
   println(java.util.Base64.getEncoder.encodeToString(serializedByThem))
 
   val deserializedByUs: Option[TestRecord] =
-    deserialize(serializedByThem).success
+    deserialize(serializedByThem)
   println(deserializedByUs)
 
   assert(

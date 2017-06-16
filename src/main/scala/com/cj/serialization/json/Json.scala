@@ -96,7 +96,7 @@ object Json {
 
   import JsonS._
 
-  def parse(raw: String): Result[Json] = JsonS.parse(raw)
+  def parse(raw: String): Either[String, Json] = JsonS.parse(raw)
 
   def apply(x: ToJson): Json = x.toJson
 
@@ -220,9 +220,9 @@ private[json] object JsonS {
 
   def pretty(json: Json): String = toArgonaut(json).spaces2
 
-  def parse(raw: String): Result[Json] =
+  def parse(raw: String): Either[String, Json] =
     argonaut.Parse.parse(raw).fold(
-      msg => Result.failure(msg),
-      ajson => Result.safely(fromArgonaut(ajson))
+      msg => Left(msg),
+      ajson => Right(fromArgonaut(ajson))
     )
 }

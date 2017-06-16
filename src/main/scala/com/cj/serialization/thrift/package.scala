@@ -52,8 +52,8 @@ package object thrift {
   class DeserializeThriftStruct[T <: ThriftStruct](codec : ThriftStructCodec[T])
     extends Deserialize[T] {
 
-    def deserialize(bytes: Array[Byte]): Result[T] = {
-      Result.safely({
+    def deserialize(bytes: Array[Byte]): Option[T] = {
+      safely({
         codec.decode({
           val output = new TMemoryBuffer(32)
           output.write(bytes)

@@ -49,10 +49,7 @@ object Java {
                                                     bytes: Array[Byte]
                                                   ): Optional[T] =
     new DeserializeSpecificRecord[T](schema)
-      .deserialize(bytes).fold(
-        withFailure = _ => Optional.empty[T],
-        withSuccess = t => Optional.of(t)
-      )
+      .deserialize(bytes).fold(Optional.empty[T])(t => Optional.of(t))
 
   /**
     * A class to represent a deserializer for the given class `T` extending
@@ -70,9 +67,7 @@ object Java {
     private object DeserializeSpecificRecord extends DeserializeSpecificRecord[T](schema)
 
     def deserialize(bytes: Array[Byte]): Optional[T] =
-      DeserializeSpecificRecord.deserialize(bytes).fold(
-        withFailure = _ => Optional.empty[T],
-        withSuccess = v => Optional.of(v)
-      )
+      DeserializeSpecificRecord.deserialize(bytes)
+        .fold(Optional.empty[T])(v => Optional.of(v))
   }
 }

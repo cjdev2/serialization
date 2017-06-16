@@ -313,7 +313,7 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
       val person = Person(n, a, ts, mo)
 
       // when/then
-      deserialize[Person](serialize(person)) should be(Result.safely(person))
+      deserialize[Person](serialize(person)) should be(Some(person))
     }
   }
 
@@ -398,14 +398,14 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
       "value" -> pair.value.get
     )
 
-    def jsonToPair(json: Json): Result[Pair] = Result.fromOption(for {
+    def jsonToPair(json: Json): Option[Pair] = for {
       propList <- json.assoc
       keyJson <- propList.get("key")
       keyJNum <- keyJson.number
       key <- scala.util.Try(keyJNum.toInt).toOption.flatMap(Option.apply)
       valueJson <- propList.get("value")
       value <- valueJson.string
-    } yield Pair(Key(key), Value(value)), "Failed parsing Json to Pair")
+    } yield Pair(Key(key), Value(value))
 
     val jsonPair2: Json = Json.obj(
       "key" -> 5,

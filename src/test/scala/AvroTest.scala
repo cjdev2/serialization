@@ -106,7 +106,7 @@ class AvroTest extends FlatSpec with Matchers with PropertyChecks {
     // starting from a TestRecord
     forAll { (s: String, n: Long) =>
       val record = new TestRecord(s, n)
-      val left1 = deserialize[TestRecord](serialize(record)).success
+      val left1 = deserialize[TestRecord](serialize(record))
       val right1 = Some(record)
       left1 == right1 should be(true)
     }
@@ -131,8 +131,7 @@ class AvroTest extends FlatSpec with Matchers with PropertyChecks {
     val result = deserialize(badBytes)
 
     // then: the result should be `None`
-    result.success should be(None)
-    result.failure should matchPattern { case Some(_) => }
+    result should be(None)
   }
 
   it should "be usable concurrently" in {

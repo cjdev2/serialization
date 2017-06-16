@@ -86,12 +86,12 @@ sealed abstract class Yaml extends Product with Serializable {
   }
 
   def long: Option[Long] = this match {
-    case YScalar(s) => Result.safely(s.toLong).success
+    case YScalar(s) => safely(s.toLong)
     case _ => None
   }
 
   def double: Option[Double] = this match {
-    case YScalar(s) => Result.safely(s.toDouble).success
+    case YScalar(s) => safely(s.toDouble)
     case _ => None
   }
 
@@ -108,7 +108,7 @@ sealed abstract class Yaml extends Product with Serializable {
   def prettyPrint(spaces: Int): String = prettyPrintYaml(spaces, this)
 
   // returns None if the string is not well-formed JSON
-  def printJson: Result[String] = printJsonYaml(this)
+  def printJson: Option[String] = printJsonYaml(this)
 }
 
 sealed trait ToYaml {
@@ -119,7 +119,7 @@ object Yaml {
 
   import YamlS._
 
-  def parse(raw: String): Result[Yaml] = YamlS.parseYaml(raw)
+  def parse(raw: String): Option[Yaml] = YamlS.parseYaml(raw)
 
   def nul: Yaml = YScalar("~")
   def nan: Yaml = YScalar(".nan")
@@ -218,39 +218,39 @@ private object YamlS {
   case class YMap(get: Map[Yaml, Yaml]) extends Yaml
   case class YStream(get: Stream[Yaml]) extends Yaml
 
-  def parseYaml(raw: String): Result[Yaml] = {
+  def parseYaml(raw: String): Option[Yaml] = {
 
     import org.yaml.snakeyaml.{Yaml => SnakeYaml}
     import scala.collection.JavaConversions._
 
-    def parseDoc(a: Any): Result[Yaml] = a match {
+    def parseDoc(a: Any): Option[Yaml] = a match {
       case a: java.util.Map[_, _] =>
         parseMap(a.toMap)
       case a: java.util.List[_] =>
         parseList(a.toList)
       case a: java.util.Date =>
-        Result.safely(YScalar(new java.text.SimpleDateFormat("yyyy-MM-dd").format(a)))
+        safely(YScalar(new java.text.SimpleDateFormat("yyyy-MM-dd").format(a)))
       case _ =>
-        Result.safely(YScalar(a.toString))
+        safely(YScalar(a.toString))
     }
 
-    def parseMap(map: Map[_, _]): Result[Yaml] =
+    def parseMap(map: Map[_, _]): Option[Yaml] =
       map.toList.map(kv => for {
         k <- parseDoc(kv._1)
         v <- parseDoc(kv._2)
       } yield (k, v)).sequence.map(l => YMap(l.toMap))
 
-    def parseList(list: List[_]): Result[Yaml] =
+    def parseList(list: List[_]): Option[Yaml] =
       list.map(a => parseDoc(a)).sequence.map(YSeq)
 
-    def parseStream(stream: Stream[_]): Result[Yaml] =
+    def parseStream(stream: Stream[_]): Option[Yaml] =
       stream.map(a => parseDoc(a)).sequence.map(YStream)
 
-    Result.safely(new SnakeYaml().load(raw)).fold(
-      withSuccess = a => parseDoc(a),
-      withFailure = _ => Result.safely(new SnakeYaml().loadAll(raw))
-        .flatMap(it => parseStream(it.toStream))
-    )
+    safely(new SnakeYaml().load(raw)) match {
+      case Some(a) => parseDoc(a)
+      case None =>
+        safely(new SnakeYaml().loadAll(raw)).flatMap(it => parseStream(it.toStream))
+    }
   }
 
   def printYaml(yaml: Yaml): String = yaml.fold(
@@ -313,12 +313,12 @@ private object YamlS {
     }
 
     def isFloating: String => Boolean = raw =>
-      Result.safely(raw.toDouble.toString.toDouble == raw.toDouble)
-        .fold(_ => false, identity)
+      safely(raw.toDouble.toString.toDouble == raw.toDouble)
+        .fold(false)(identity)
 
     def isIntegral: String => Boolean = raw =>
-      Result.safely(raw.toLong.toString.toLong == raw.toLong)
-        .fold(_ => false, identity)
+      safely(raw.toLong.toString.toLong == raw.toLong)
+        .fold(false)(identity)
 
     raw match {
       case _ if matchNull(raw) => "null"
@@ -330,23 +330,20 @@ private object YamlS {
     }
   }
 
-  def printJsonYaml(yaml: Yaml): Result[String] = yaml.fold(
-    withScalar = _ => Result.safely(yaml.print),
-    withSeq = _ => Result.safely(yaml.print),
+  def printJsonYaml(yaml: Yaml): Option[String] = yaml.fold(
+    withScalar = _ => safely(yaml.print),
+    withSeq = _ => safely(yaml.print),
     withMap = {
-      def f(kv: (Yaml, Yaml)): Result[String] = kv._1 match {
-        case y@YScalar(_) =>
-          Result.safely(y.print + ": " + kv._2.print)
-        case _ =>
-          Result.failure("Cannot convert Yaml mappings with complex keys to Json")
+      def f(kv: (Yaml, Yaml)): Option[String] = kv._1 match {
+        case y@YScalar(_) => safely(y.print + ": " + kv._2.print)
+        case _ => None
       }
       assoc =>
         assoc.toList.map(f).sequence.map(
           "{" + _.mkString(", ") + "}"
         )
     },
-    withStream = _ =>
-      Result.failure("Cannot convert Yaml streams to Json")
+    withStream = _ => None
   )
 
   def matchNull(s: String): Boolean = s match {

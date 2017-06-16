@@ -16,13 +16,14 @@
         <scalaz-core_version>7.2.11</scalaz-core_version>
         <scalatest_version>3.0.3</scalatest_version>
         <scalacheck_version>1.13.5</scalacheck_version>
-        <avro_version>1.8.1</avro_version>
-        <libthrift_version>0.10.0</libthrift_version>
-        <scrooge-core_version>4.16.0</scrooge-core_version>
+        <avro_version>1.8.2</avro_version>
+        <avro-maven-plugin_version>1.8.2</avro-maven-plugin_version>
+        <libthrift_version>0.9.1</libthrift_version>
+        <maven-thrift-plugin_version>0.1.11</maven-thrift-plugin_version>
+        <scrooge-core_version>4.18.0</scrooge-core_version>
+        <scrooge-maven-plugin_version>4.18.0</scrooge-maven-plugin_version>
         <argonaut_version>6.2</argonaut_version>
         <snakeyaml_version>1.18</snakeyaml_version>
-        <scrooge-maven-plugin_version>4.16.0</scrooge-maven-plugin_version>
-        <avro-maven-plugin_version>1.8.1</avro-maven-plugin_version>
         <maven-compiler-plugin_version>3.6.1</maven-compiler-plugin_version>
         <scala-maven-plugin_version>3.2.2</scala-maven-plugin_version>
         <scalatest-maven-plugin_version>1.0</scalatest-maven-plugin_version>
@@ -81,22 +82,36 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>com.twitter</groupId>
-                <artifactId>scrooge-maven-plugin</artifactId>
-                <version>${scrooge-maven-plugin_version}</version>
+                <groupId>org.apache.thrift.tools</groupId>
+                <artifactId>maven-thrift-plugin</artifactId>
+                <version>${maven-thrift-plugin_version}</version>
                 <configuration>
-                    <language>scala</language>
-                    <buildExtractedThrift>true</buildExtractedThrift>
-                    <thriftSourceRoot>
-                        src/test/resources/thrift
-                    </thriftSourceRoot>
                     <outputDirectory>
                         target/generated-test-sources/thrift
                     </outputDirectory>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>thrift-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.twitter</groupId>
+                <artifactId>scrooge-maven-plugin</artifactId>
+                <version>${scrooge-maven-plugin_version}</version>
+                <configuration>
+                    <language>scala</language>
+                    <buildExtractedThrift>true</buildExtractedThrift>
+                    <outputDirectory>
+                        target/generated-test-sources/scrooge
+                    </outputDirectory>
+                </configuration>
+                <executions>
+                    <execution>
                         <phase>generate-test-sources</phase>
                         <goals>
                             <goal>testCompile</goal>

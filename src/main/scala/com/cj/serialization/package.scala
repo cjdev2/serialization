@@ -70,7 +70,7 @@ package object serialization {
 
   /**
     * Provides a [[deserialize]] (prefix) method to `Array[Byte]` post-hoc,
-    * which allows byte arrays to be parsed into values of `Result[T]`.
+    * which allows byte arrays to be parsed into values of `Option[T]`.
     *
     * [[Deserialize]]`[_]` is covariant, in the sense that if `S` is a
     * subtype of `T`, then `Deserializable[S]` is a subtype of
@@ -92,7 +92,7 @@ package object serialization {
     *           are implementing
     */
   trait Deserialize[+T] {
-    def deserialize(bytes: Array[Byte]): Result[T]
+    def deserialize(bytes: Array[Byte]): Option[T]
   }
 
   /**
@@ -103,9 +103,9 @@ package object serialization {
     *
     * @param bytes the bytes you hope to deserialize
     * @tparam T the type you hope to retrieve from `bytes`
-    * @return An `Result[T]`, where `None` represents failure to deserialize
+    * @return An `Option[T]`, where `None` represents failure to deserialize
     */
-  def deserialize[T: Deserialize](bytes: Array[Byte]): Result[T] =
+  def deserialize[T: Deserialize](bytes: Array[Byte]): Option[T] =
     implicitly[Deserialize[T]].deserialize(bytes)
 
   /**
@@ -116,31 +116,30 @@ package object serialization {
     * `Deserializable[String]` simply by creating their own implementation:
     * {{{
     *   implicit object Foo extends Deserializable[String] {
-    *     def deserialize(bytes: Array[Byte]): Result[T] = { ... }
+    *     def deserialize(bytes: Array[Byte]): Option[T] = { ... }
     *   }
     * }}}
     */
   object Deserialize {
 
     implicit object DeserializeString extends Deserialize[String] {
-      def deserialize(bytes: Array[Byte]): Result[String] = Result.safely(
-        new String(bytes, "UTF-8")
-      )
+      def deserialize(bytes: Array[Byte]): Option[String] =
+        safely(new String(bytes, "UTF-8"))
     }
 
     implicit object DeserializeByte extends Deserialize[Byte] {
-      def deserialize(bytes: Array[Byte]): Result[Byte] = bytes.length match {
-        case 1 => Result.safely(bytes.head)
-        case _ => Result.failure("DeserializeByte: source was more than one byte")
+      def deserialize(bytes: Array[Byte]): Option[Byte] = bytes.length match {
+        case 1 => safely(bytes.head)
+        case _ => None
       }
     }
 
     class DeserializeAnyVal[T <: AnyVal](parse: String => T)
       extends Deserialize[T] {
 
-      def deserialize(bytes: Array[Byte]): Result[T] =
+      def deserialize(bytes: Array[Byte]): Option[T] =
         implicitly[Deserialize[String]].deserialize(bytes)
-          .flatMap(string => Result.safely(parse(string)))
+          .flatMap(string => safely(parse(string)))
     }
 
     implicit object DeserializeChar
@@ -176,4 +175,7 @@ package object serialization {
     implicit object DeserializeShort
       extends DeserializeAnyVal[Short](_.toShort)
   }
+
+  private[serialization] def safely[T](t: => T): Option[T] =
+    scala.util.Try(t).toOption.flatMap(Option.apply)
 }
