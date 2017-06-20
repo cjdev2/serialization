@@ -7,9 +7,9 @@ package object serialization {
     * allow values of `T` to be serialized into byte arrays.
     *
     * [[Serialize]]`[_]` is contravariant, in the sense that if `S` is a
-    * subtype of `T`, then `Serializable[T]` is a subtype of `Serializable[S]`.
-    * As a result, any implementation of `Serializable[T]` is automatically an
-    * implementation of `Serializable[S]`.
+    * subtype of `T`, then `Serialize[T]` is a subtype of `Serialize[S]`.
+    * As a result, any implementation of `Serialize[T]` is automatically an
+    * implementation of `Serialize[S]`.
     *
     * Implementations must be thread-safe and, when an implementation of
     * [[Deserialize]]`[T]` is in scope, must satisfy the following laws:
@@ -31,7 +31,7 @@ package object serialization {
   /**
     * Call [[serialize]] on any value `t: T` for which an implicit instance of
     * [[Serialize]]`[T]` exists in scope. If there is no implicit instance of
-    * `Serializable[T]`---or if there is more than one implicit instance--- in
+    * `Serialize[T]`---or if there is more than one implicit instance--- in
     * scope, your code will fail to compile (i.e. there is no risk that
     * ambiguity will lead to a runtime error).
     *
@@ -47,25 +47,28 @@ package object serialization {
     *
     * These instances are only accessible if the user does not provide their own
     * instances. E.g., the user may override the library implementation of
-    * `Serializable[String]` simply by creating their own implementation:
+    * `Serialize[String]` simply by creating their own implementation:
     * {{{
-    *   implicit object Foo extends Serializable[String] {
+    *   implicit object Foo extends Serialize[String] {
     *     def serialize(t: String): Array[Byte] = { ... }
     *   }
     * }}}
     */
   object Serialize {
 
-    implicit object SerializeString extends Serialize[String] {
-      def serialize(t: String): Array[Byte] = t.getBytes("UTF-8")
-    }
-
-    implicit object SerializeAnyVal extends Serialize[AnyVal] {
-      def serialize(t: AnyVal): Array[Byte] = t match {
-        case t: Byte => Array(t)
-        case _ => implicitly[Serialize[String]].serialize(t.toString)
+    def apply[T](s: T => Array[Byte]): Serialize[T] =
+      new Serialize[T] {
+        def serialize(t: T): Array[Byte] = s(t)
       }
-    }
+
+    implicit lazy val serializeString: Serialize[String] =
+      Serialize(t => t.getBytes("UTF-8"))
+
+    implicit lazy val serializeAnyVal: Serialize[AnyVal] =
+      Serialize({
+        case t: Byte => Array(t)
+        case t => serialize[String](t.toString)
+      })
   }
 
   /**
@@ -73,10 +76,10 @@ package object serialization {
     * which allows byte arrays to be parsed into values of `Option[T]`.
     *
     * [[Deserialize]]`[_]` is covariant, in the sense that if `S` is a
-    * subtype of `T`, then `Deserializable[S]` is a subtype of
-    * `Deserializable[T]`. As a result, any implementation of
-    * `Deserializable[S]` is automatically an implementation of
-    * `Deserializable[T]`.
+    * subtype of `T`, then `Deserialize[S]` is a subtype of
+    * `Deserialize[T]`. As a result, any implementation of
+    * `Deserialize[S]` is automatically an implementation of
+    * `Deserialize[T]`.
     *
     * Implementations must be thread-safe and, when an implementation of
     * [[Serialize]]`[T]` is in scope, must satisfy the following laws:
@@ -113,67 +116,61 @@ package object serialization {
     *
     * These instances are accessible only if the user does not provide their own
     * instances. E.g., the user may override the library implementation of
-    * `Deserializable[String]` simply by creating their own implementation:
+    * `Deserialize[String]` simply by creating their own implementation:
     * {{{
-    *   implicit object Foo extends Deserializable[String] {
+    *   implicit object Foo extends Deserialize[String] {
     *     def deserialize(bytes: Array[Byte]): Option[T] = { ... }
     *   }
     * }}}
     */
   object Deserialize {
 
-    implicit object DeserializeString extends Deserialize[String] {
-      def deserialize(bytes: Array[Byte]): Option[String] =
-        safely(new String(bytes, "UTF-8"))
-    }
+    def apply[T](d: Array[Byte] => Option[T]): Deserialize[T] =
+      new Deserialize[T] {
+        def deserialize(bytes: Array[Byte]): Option[T] = d(bytes)
+      }
 
-    implicit object DeserializeByte extends Deserialize[Byte] {
-      def deserialize(bytes: Array[Byte]): Option[Byte] = bytes.length match {
+    def kleisli[T: Deserialize, S](k: T => Option[S]): Deserialize[S] =
+      Deserialize[S](bs => deserialize[T](bs).flatMap(k))
+
+    def compose[T: Deserialize, S](f: T => S): Deserialize[S] =
+      kleisli[T, S](t => safely(f(t)))
+
+    implicit lazy val deserializeString: Deserialize[String] =
+      Deserialize(bytes => safely(new String(bytes, "UTF-8")))
+
+    implicit lazy val deserializeByte: Deserialize[Byte] =
+      Deserialize(bytes => bytes.length match {
         case 1 => safely(bytes.head)
         case _ => None
-      }
-    }
+      })
 
-    class DeserializeAnyVal[T <: AnyVal](parse: String => T)
-      extends Deserialize[T] {
+    implicit lazy val deserializeChar: Deserialize[Char] =
+      compose[String, Char](str => str.length match { case 1 => str.head })
 
-      def deserialize(bytes: Array[Byte]): Option[T] =
-        implicitly[Deserialize[String]].deserialize(bytes)
-          .flatMap(string => safely(parse(string)))
-    }
-
-    implicit object DeserializeChar
-      extends DeserializeAnyVal[Char](
-        string => string.length match {
-          case 1 => string.head
-        }
-      )
-
-    implicit object DeserializeBoolean
-      extends DeserializeAnyVal[Boolean]({
+    implicit lazy val deserializeBoolean: Deserialize[Boolean] =
+      compose[String, Boolean]({
         case "false" => false
         case "true" => true
       })
 
-    implicit object DeserializeUnit
-      extends DeserializeAnyVal[Unit]({
-        case "()" => ()
-      })
+    implicit lazy val deserializeUnit: Deserialize[Unit] =
+      compose[String, Unit]({ case "()" => () })
 
-    implicit object DeserializeDouble
-      extends DeserializeAnyVal[Double](_.toDouble)
+    implicit lazy val deserializeDouble: Deserialize[Double] =
+      compose[String, Double](_.toDouble)
 
-    implicit object DeserializeFloat
-      extends DeserializeAnyVal[Float](_.toFloat)
+    implicit lazy val deserializeFloat: Deserialize[Float] =
+      compose[String, Float](_.toFloat)
 
-    implicit object  DeserializeInt
-      extends DeserializeAnyVal[Int](_.toInt)
+    implicit lazy val deserializeInt: Deserialize[Int] =
+      compose[String, Int](_.toInt)
 
-    implicit object DeserializeLong
-      extends DeserializeAnyVal[Long](_.toLong)
+    implicit lazy val deserializeLong: Deserialize[Long] =
+      compose[String, Long](_.toLong)
 
-    implicit object DeserializeShort
-      extends DeserializeAnyVal[Short](_.toShort)
+    implicit lazy val deserializeShort: Deserialize[Short] =
+      compose[String, Short](_.toShort)
   }
 
   private[serialization] def safely[T](t: => T): Option[T] =
