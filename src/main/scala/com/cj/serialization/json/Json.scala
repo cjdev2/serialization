@@ -12,30 +12,22 @@ sealed abstract class Json extends Product with Serializable {
                withBoolean: Boolean => X,
                withNumber: BigDecimal => X,
                withString: String => X,
-               withArray: List[Json] => X,
-               withAssoc: Map[String, Json] => X
-             ):X = this match {
-    case JNull => withNull
-    case JBool(p) => withBoolean(p)
-    case JNumber(x) => withNumber(x)
-    case JString(x) => withString(x)
-    case JArray(x) => withArray(x)
-    case JAssoc(x) => withAssoc(x)
-  }
+               withArray: List[X] => X,
+               withAssoc: Map[String, X] => X
+             ):X = {
 
-  def ~>(key: String): Option[Json] = this match {
-    case JAssoc(x) => x.get(key)
-    case _ => None
-  }
+    val cont: Json => X =
+      _.fold(withNull,withBoolean,withNumber,withString,withArray,withAssoc)
 
-  def ~>(key: Int): Option[Json] = this match {
-    case JAssoc(x) => x.get(key.toString)
-    case JArray(x) => x.lift(key)
-    case _ => None
+    this match {
+      case JNull => withNull
+      case JBool(p) => withBoolean(p)
+      case JNumber(x) => withNumber(x)
+      case JString(x) => withString(x)
+      case JArray(x) => withArray(x.map(cont))
+      case JAssoc(x) => withAssoc(x.mapValues(cont))
+    }
   }
-
-  def ><(f: Json => Option[Json]): Option[List[Json]] =
-    this.array.flatMap(list => list.map(json => f(json)).sequence)
 
   def nul: Option[Unit] = this match {
     case JNull => Some(())
@@ -83,33 +75,31 @@ sealed abstract class Json extends Product with Serializable {
     case _ => None
   }
 
+  def ~>(key: String): Option[Json] = this match {
+    case JAssoc(x) => x.get(key)
+    case _ => None
+  }
+
+  def ~>(key: Int): Option[Json] = this match {
+    case JAssoc(x) => x.get(key.toString)
+    case JArray(x) => x.lift(key)
+    case _ => None
+  }
+
+  def ><[A](f: Json => Option[A]): Option[List[A]] = this.array.flatMap(
+    jsons => jsons.map(json => f(json)).sequence)
+
+  def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] = this.array.flatMap(
+    jsons => jsons.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j))))
+
   def print: String = JsonS.print(this)
 
   def pretty: String = JsonS.pretty(this)
 }
 
-sealed trait ToJson {
-  def toJson: Json
-}
-
 object Json {
 
   import JsonS._
-
-  def parse(raw: String): Either[String, Json] = JsonS.parse(raw)
-
-  def apply(x: ToJson): Json = x.toJson
-
-  def emptyObj: Json =
-    assoc(Map())
-
-  def obj(members: (String, ToJson)*): Json =
-    assoc(members.map(x => (x._1, x._2.toJson)).toMap)
-
-  def emptyArr: Json = array(List())
-
-  def arr(elements: ToJson*): Json =
-    array(elements.map(_.toJson).toList)
 
   def nul: Json = JNull
   def bool(p: Boolean): Json = JBool(p)
@@ -119,6 +109,24 @@ object Json {
   def string(s: String): Json = JString(s)
   def array(arr: List[Json]): Json = JArray(arr)
   def assoc(obj: Map[String, Json]): Json = JAssoc(obj)
+
+  def apply(x: ToJson): Json = x.toJson
+
+  def obj(members: (String, ToJson)*): Json =
+    assoc(members.map(x => (x._1, x._2.toJson)).toMap)
+
+  def arr(elements: ToJson*): Json =
+    array(elements.map(_.toJson).toList)
+
+  def emptyObj: Json = assoc(Map())
+
+  def emptyArr: Json = array(List())
+
+  def parse(raw: String): Either[String, Json] = JsonS.parse(raw)
+}
+
+sealed trait ToJson {
+  def toJson: Json
 }
 
 object JsonImplicits {
@@ -159,11 +167,20 @@ object JsonImplicits {
     def toJson: Json = Json.string(x)
   }
 
+  implicit class OptionToJson[A <: ToJson](x: Option[A]) extends ToJson {
+    def toJson: Json = x.fold(Json.nul)(_.toJson)
+  }
+
+  implicit class ListToJson[A <: ToJson](x: List[A]) extends ToJson {
+    def toJson: Json = Json.array(x.map(_.toJson))
+  }
+
+  implicit class MapToJson[A <: ToJson](x: Map[String, Json]) extends ToJson {
+    def toJson: Json = Json.assoc(x.mapValues(_.toJson))
+  }
+
   implicit class JsonOp(optionJson: Option[Json]) {
-    def ~>(key: String): Option[Json] = optionJson.flatMap(_.~>(key))
-    def ~>(key: Int): Option[Json] = optionJson.flatMap(_.~>(key))
-    def ><(f: Json => Option[Json]): Option[List[Json]] =
-      optionJson.array.flatMap(list => list.map(json => f(json)).sequence)
+
     def nul: Option[Unit] = optionJson.flatMap(_.nul)
     def bool: Option[Boolean] = optionJson.flatMap(_.bool)
     def number: Option[BigDecimal] = optionJson.flatMap(_.number)
@@ -172,16 +189,40 @@ object JsonImplicits {
     def string: Option[String] = optionJson.flatMap(_.string)
     def array: Option[List[Json]] = optionJson.flatMap(_.array)
     def assoc: Option[Map[String, Json]] = optionJson.flatMap(_.assoc)
+
+    def ~>(key: String): Option[Json] =
+      optionJson.flatMap(_.~>(key))
+
+    def ~>(key: Int): Option[Json] =
+      optionJson.flatMap(_.~>(key))
+
+    def ><[A](f: Json => Option[A]): Option[List[A]] =
+      optionJson.array.flatMap(list => list.map(json => f(json)).sequence)
+
+    def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
+      optionJson.array.flatMap { jsons =>
+        jsons.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j)))
+      }
   }
 
   implicit class JsonTraversalList(x: List[Json]) {
-    def ><(f: Json => Option[Json]): Option[List[Json]] =
+
+    def ><[A](f: Json => Option[A]): Option[List[A]] =
       x.map(js => js >< {j => f(j)}).sequence.map(_.flatten)
+
+    def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
+      x.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j)))
   }
 
   implicit class JsonTraversalListOp(opX: Option[List[Json]]) {
-    def ><(f: Json => Option[Json]): Option[List[Json]] =
+
+    def ><[A](f: Json => Option[A]): Option[List[A]] =
       opX.flatMap(x => x.map(js => js >< {j => f(j)}).sequence.map(_.flatten))
+
+    def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
+      opX.flatMap { x =>
+        x.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j)))
+      }
   }
 }
 
@@ -196,7 +237,7 @@ private[json] object JsonS {
 
   import argonaut.{Json => AJson, JsonObject}
 
-  def fromArgonaut(ajson: AJson): Json = ajson.fold(
+  def fromArgonaut(ajson: AJson): Json = ajson.fold[Json](
     jsonNull = Json.nul,
     jsonBool = p => Json.bool(p),
     jsonNumber = n => Json.number(n.toBigDecimal),
@@ -206,14 +247,14 @@ private[json] object JsonS {
       assoc.toMap.map({case (k, v) => (k, fromArgonaut(v))}))
   )
 
-  def toArgonaut(json: Json): AJson = json.fold(
+  def toArgonaut(json: Json): AJson = json.fold[AJson](
     withNull = AJson.jNull,
     withBoolean = p => AJson.jBool(p),
     withNumber = n => AJson.jNumber(n),
     withString = s => AJson.jString(s),
-    withArray = array => AJson.jArray(array.map(toArgonaut)),
-    withAssoc = assoc => AJson.jObject(JsonObject.fromTraversableOnce(
-      assoc.map({case (k, v) => (k, toArgonaut(v))})))
+    withArray = array => AJson.jArray(array),
+    withAssoc = assoc =>
+      AJson.jObject(JsonObject.fromTraversableOnce(assoc))
   )
 
   def print(json: Json): String = toArgonaut(json).nospaces

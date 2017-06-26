@@ -63,18 +63,14 @@ package object yaml {
       import scalaz._, Scalaz._
 
       def toYaml(t: Json): Yaml =
-        t.fold(
+        t.fold[Yaml](
           withNull = Yaml.scalar("~"),
           withBoolean = p => Yaml.scalar(p.toString),
           withNumber = n => Yaml.scalar(n.toString),
           withString = s => Yaml.scalar(s),
-          withArray = js => Yaml.array(js.map(toYaml)),
-          withAssoc = obj => {
-            Yaml.assoc(obj.toList.map({
-              case (key, value) =>
-                (Yaml.scalar(key), toYaml(value))
-            }).toMap)
-          }
+          withArray = ys => Yaml.array(ys),
+          withAssoc = msy =>
+            Yaml.assoc(msy map { case (k, v) => (Yaml.scalar(k), v) })
         )
 
       def fromYaml(yaml: Yaml): Option[Json] =
