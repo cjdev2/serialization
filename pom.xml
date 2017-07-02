@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>serialization_2.11</artifactId>
-    <version>1.3</version>
+    <version>1.3.2</version>
 
     <properties>
         <java-source_version>1.8</java-source_version>
@@ -61,11 +61,13 @@
             <groupId>org.apache.thrift</groupId>
             <artifactId>libthrift</artifactId>
             <version>${libthrift_version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.twitter</groupId>
             <artifactId>scrooge-core_${scala-major_version}</artifactId>
             <version>${scrooge-core_version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.argonaut</groupId>
