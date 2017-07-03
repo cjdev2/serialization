@@ -6,14 +6,14 @@
 
     <groupId>com.cj</groupId>
     <artifactId>serialization_2.11</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
 
     <properties>
         <java-source_version>1.8</java-source_version>
         <java-target_version>1.8</java-target_version>
         <scala-major_version>2.11</scala-major_version>
         <scala-major-minor_version>2.11.11</scala-major-minor_version>
-        <scalaz-core_version>7.2.11</scalaz-core_version>
+        <scalaz-core_version>7.2.14</scalaz-core_version>
         <scalatest_version>3.0.3</scalatest_version>
         <scalacheck_version>1.13.5</scalacheck_version>
         <avro_version>1.8.2</avro_version>
@@ -27,62 +27,86 @@
         <maven-compiler-plugin_version>3.6.1</maven-compiler-plugin_version>
         <scala-maven-plugin_version>3.2.2</scala-maven-plugin_version>
         <scalatest-maven-plugin_version>1.0</scalatest-maven-plugin_version>
+        <maven-enforcer-plugin_version>1.4.1</maven-enforcer-plugin_version>
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>${scala-major-minor_version}</version>
-        </dependency>
+
         <dependency>
             <groupId>org.scalaz</groupId>
             <artifactId>scalaz-core_${scala-major_version}</artifactId>
             <version>${scalaz-core_version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala-major_version}</artifactId>
             <version>${scalatest_version}</version>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.scalacheck</groupId>
             <artifactId>scalacheck_${scala-major_version}</artifactId>
             <version>${scalacheck_version}</version>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
             <version>${avro_version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.apache.thrift</groupId>
             <artifactId>libthrift</artifactId>
             <version>${libthrift_version}</version>
             <optional>true</optional>
         </dependency>
+
         <dependency>
             <groupId>com.twitter</groupId>
             <artifactId>scrooge-core_${scala-major_version}</artifactId>
             <version>${scrooge-core_version}</version>
             <optional>true</optional>
         </dependency>
+
         <dependency>
             <groupId>io.argonaut</groupId>
             <artifactId>argonaut_${scala-major_version}</artifactId>
             <version>${argonaut_version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
             <version>${snakeyaml_version}</version>
         </dependency>
+
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-library</artifactId>
+                <version>${scala-major-minor_version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.7</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>
+
             <plugin>
                 <groupId>org.apache.thrift.tools</groupId>
                 <artifactId>maven-thrift-plugin</artifactId>
@@ -101,6 +125,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>com.twitter</groupId>
                 <artifactId>scrooge-maven-plugin</artifactId>
@@ -121,6 +146,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro-maven-plugin</artifactId>
@@ -146,6 +172,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -155,6 +182,7 @@
                     <target>${java-target_version}</target>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
@@ -176,6 +204,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
@@ -194,6 +223,26 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin_version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce</id>
+                        <configuration>
+                            <rules>
+                                <dependencyConvergence/>
+                            </rules>
+                        </configuration>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 
