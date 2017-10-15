@@ -56,13 +56,11 @@ package object thrift {
     extends Deserialize[T] {
 
     def deserialize(bytes: Array[Byte]): Option[T] = {
-      safely({
-        codec.decode({
-          val output = new TMemoryBuffer(32)
-          output.write(bytes)
-          new TBinaryProtocol(output)
-        })
-      })
+      safely{ codec.decode {
+        val output = new TMemoryBuffer(32)
+        output.write(bytes)
+        new TBinaryProtocol(output)
+      } }
     }
   }
 

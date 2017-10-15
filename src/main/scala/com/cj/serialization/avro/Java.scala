@@ -24,8 +24,8 @@ object Java {
 
   /**
     * A class to represent a serializer for the given class `T` extending
-    * `SpecificRecord`. Strictly speaking, this class is unnecessary, as
-    * `serialize` works generically for any class extending `SpecificRecord`;
+    * `SpecificRecord`. Strictly speaking, this class is redundant, as
+    * `serializeAvro` works generically for any class extending `SpecificRecord`;
     * however, this class is included in case a class representation is
     * necessary to satisfy some API.
     */
@@ -52,8 +52,8 @@ object Java {
 
   /**
     * A class to represent a deserializer for the given class `T` extending
-    * `SpecificRecord`. Strictly speaking, this class is unnecessary, as
-    * `deserialize` works generically for any class extending `SpecificRecord`;
+    * `SpecificRecord`. Strictly speaking, this class is redundant, as
+    * `deserializeAvro` works generically for any class extending `SpecificRecord`;
     * however, this class is included in case a class representation is
     * necessary to satisfy some API.
     *

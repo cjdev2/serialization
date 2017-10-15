@@ -14,26 +14,43 @@ object Java {
     type A <: TBase[A, B]
   }
 
+  /**
+    * Supply an object that is a member of `TBase` to get a Thrift-compliant
+    * byte representation.
+    */
   def serializeThrift[T <: Thrift](t: T): Array[Byte] =
     new TSerializer().serialize(t)
 
+  /**
+    * A class to represent a serializer for the given class `T` extending
+    * `TBase`. Strictly speaking, this class is redundant, as
+    * `serializeThrift` works generically for any class extending `TBase`.
+    */
   class ThriftSerializeJ[T <: Thrift] extends SerializeJ[T] {
     def serialize(t: T): Array[Byte] = serializeThrift[T](t)
   }
 
+  /**
+    * Attempts to deserialize the provided `bytes` as a member of the provided
+    * `clazz`, which must extend `TBase`.
+    */
   def deserializeThrift[T <: Thrift](
-                                      prototype: T,
+                                      clazz: Class[T],
                                       bytes: Array[Byte]
                                     ): Optional[T] =
     safely {
-      val spud = prototype.deepCopy.asInstanceOf[T]
+      val spud = clazz.getDeclaredConstructor().newInstance()
       new TDeserializer().deserialize(spud, bytes)
       spud
     }.fold(Optional.empty[T])(Optional.of)
 
-  class ThriftDeserializeJ[T <: Thrift](prototype: T) extends DeserializeJ[T] {
-    private val spud = prototype.deepCopy.asInstanceOf[T]
+  /**
+    * A class to represent a deserializer for the given class `T` extending
+    * `TBase`. Strictly speaking, this class is redundant, as
+    * `deserializeThrift` works generically for any class extending `TBase`.
+    */
+  class ThriftDeserializeJ[T <: Thrift](clazz: Class[T]) extends DeserializeJ[T] {
     def deserialize(bytes: Array[Byte]): Optional[T] =
-      deserializeThrift[T](spud, bytes)
+      deserializeThrift[T](clazz, bytes)
   }
 }
