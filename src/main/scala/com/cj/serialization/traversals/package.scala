@@ -24,7 +24,7 @@ package object traversals {
       val init: Option[Map[K, B]] = Some(Map())
 
       def step(acc: Option[Map[K, B]], next: (K, A)): Option[Map[K, B]] =
-        for { map <- acc; k = next._1; b <- f(next._2) } yield map.updated(k, b)
+        for { map <- acc; k = next._1; b <- f(next._2) } yield map + (k -> b)
 
       self.foldLeft(init)(step)
     }
