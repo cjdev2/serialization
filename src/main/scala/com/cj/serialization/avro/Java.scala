@@ -30,8 +30,7 @@ object Java {
     * necessary to satisfy some API.
     */
   class AvroSerializeJ[T <: SpecificRecord] extends SerializeJ[T] {
-    def serialize(t: T): Array[Byte] =
-      SerializeSpecificRecord.serialize(t)
+    def serialize(t: T): Array[Byte] = SerializeSpecificRecord.serialize(t)
   }
 
   /**
@@ -49,7 +48,7 @@ object Java {
                                                     bytes: Array[Byte]
                                                   ): Optional[T] =
     new DeserializeSpecificRecord[T](schema)
-      .deserialize(bytes).fold(Optional.empty[T])(t => Optional.of(t))
+      .deserialize(bytes).fold(Optional.empty[T])(Optional.of)
 
   /**
     * A class to represent a deserializer for the given class `T` extending
@@ -64,10 +63,10 @@ object Java {
   class AvroDeserializeJ[T >: Null <: SpecificRecord](schema: Schema)
     extends DeserializeJ[T] {
 
-    private object DeserializeSpecificRecord extends DeserializeSpecificRecord[T](schema)
+    private val deserializeSpecificRecord = new DeserializeSpecificRecord[T](schema)
 
     def deserialize(bytes: Array[Byte]): Optional[T] =
-      DeserializeSpecificRecord.deserialize(bytes)
+      deserializeSpecificRecord.deserialize(bytes)
         .fold(Optional.empty[T])(v => Optional.of(v))
   }
 }

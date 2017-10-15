@@ -1,7 +1,7 @@
 package com.cj.serialization
 package yaml
 
-import scalaz._, Scalaz._
+import traversals._
 
 sealed abstract class Yaml extends Product with Serializable {
 
@@ -37,7 +37,7 @@ sealed abstract class Yaml extends Product with Serializable {
   }
 
   def ><(f: Yaml => Option[Yaml]): Option[List[Yaml]] =
-    this.array.flatMap(list => list.map(yaml => f(yaml)).sequence)
+    this.array.flatMap { _.traverse(f) }
 
   def scalar: Option[String] = this match {
     case YScalar(raw) => Some(raw)
@@ -186,7 +186,7 @@ object YamlImplicits {
     def ~>(key: String): Option[Yaml] = x.flatMap(y => y ~> key)
     def ~>(key: Int): Option[Yaml] = x.flatMap(y => y ~> key)
     def ><(f: Yaml => Option[Yaml]): Option[List[Yaml]] =
-      x.array.flatMap(list => list.map(yaml => f(yaml)).sequence)
+      x.array.flatMap { _.traverse(f) }
     def assoc: Option[Map[Yaml, Yaml]] = x.flatMap(y => y.assoc)
     def array: Option[List[Yaml]] = x.flatMap(y => y.array)
     def stream: Option[Stream[Yaml]] = x.flatMap(y => y.stream)
@@ -202,12 +202,12 @@ object YamlImplicits {
 
   implicit class JsonTraversalList(x: List[Yaml]) {
     def ><(f: Yaml => Option[Yaml]): Option[List[Yaml]] =
-      x.map(js => js >< {j => f(j)}).sequence.map(_.flatten)
+      x.traverse(_ >< f).map(_.flatten)
   }
 
   implicit class JsonTraversalListOp(opX: Option[List[Yaml]]) {
     def ><(f: Yaml => Option[Yaml]): Option[List[Yaml]] =
-      opX.flatMap(x => x.map(js => js >< {j => f(j)}).sequence.map(_.flatten))
+      opX.flatMap { _.traverse(_ >< f).map(_.flatten) }
   }
 }
 
@@ -235,16 +235,15 @@ private object YamlS {
     }
 
     def parseMap(map: Map[_, _]): Option[Yaml] =
-      map.toList.map(kv => for {
-        k <- parseDoc(kv._1)
-        v <- parseDoc(kv._2)
-      } yield (k, v)).sequence.map(l => YMap(l.toMap))
+      map.toList.traverse { case (a, b) =>
+        for { k <- parseDoc(a); v <- parseDoc(b) } yield (k, v)
+      } map { dict => YMap(dict.toMap) }
 
     def parseList(list: List[_]): Option[Yaml] =
-      list.map(a => parseDoc(a)).sequence.map(YSeq)
+      list.traverse(parseDoc).map(YSeq)
 
     def parseStream(stream: Stream[_]): Option[Yaml] =
-      stream.map(a => parseDoc(a)).sequence.map(YStream)
+      stream.traverse(parseDoc).map(YStream)
 
     safely(new SnakeYaml().load(raw)) match {
       case Some(a) => parseDoc(a)
@@ -339,7 +338,7 @@ private object YamlS {
         case _ => None
       }
       assoc =>
-        assoc.toList.map(f).sequence.map(
+        assoc.toList.traverse(f).map(
           "{" + _.mkString(", ") + "}"
         )
     },

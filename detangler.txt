@@ -1,0 +1,29 @@
+{
+  reportDir target/detangled
+  searchPaths
+  [
+    target/serialization_2.11-1.4.0-SNAPSHOT.jar
+  ]
+  level 1
+  startsWith
+  {
+    include
+    [
+      [ com cj serialization ]
+    ]
+    exclude []
+    drop
+    [
+      [ com cj serialization ]
+    ]
+  }
+  ignoreFiles []
+  canFailBuild true
+  allowedInCycle
+  [
+    [ json/Json ]
+    [ json/JsonS ]
+    [ yaml/Yaml ]
+    [ yaml/YamlS ]
+  ]
+}

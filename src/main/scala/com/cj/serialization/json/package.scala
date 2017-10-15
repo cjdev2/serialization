@@ -3,7 +3,7 @@ package com.cj.serialization
 package object json {
 
   import argonaut.{DecodeJson, DecodeResult, EncodeJson, HCursor, Json => AJson}
-  import scalaz._, Scalaz._
+  import traversals._
 
   /**
     * Encapsulates the data required to safely convert back and forth among a
@@ -11,30 +11,17 @@ package object json {
     * must be thread-safe, must not throw, and must satisfy the contract:
     *
     * {{{
-    *   fromJson(toJson(t))       == Some(t)
+    * forAll { (t: T) =>
+    *   assert { fromJson(toJson(t)) == Some(t) }
+    * }
     *
-    *   parseJson(printJson(t))   == Some(t)
-    *
-    *   parseJson(prettyJson(t))  == Some(t)
-    *
-    *   deserialize(serialize(t)) == Some(t)
-    *
-    *   fromJson(json).map(toJson).flatMap(fromJson)
-    *     == fromJson(json)
-    *
-    *   parseJson(string).map(printJson).flatMap(parseJson)
-    *     == fromJsonString(string)
-    *
-    *   parseJson(string).map(prettyJson).flatMap(parseJson)
-    *     == fromJsonString(string)
-    *
-    *   deserialize(bytes).map(serialize).flatMap(deserialize)
-    *     == deserialize(bytes)
+    * forAll { (j: Json) =>
+    *   assert { fromJson(j).map(toJson).flatMap(fromJson) == fromJson(j) }
+    * }
     * }}}
     *
-    * @tparam T The class for which you are implementing the [[serialize]],
-    *           [[deserialize]], [[toJson]], [[printJson]], and [[prettyJson]]
-    *           prefix methods.
+    * @tparam T The type for which you are implementing the [[toJson]] and
+    *           [[fromJson]] methods.
     */
   trait JsonCodec[T] extends Serialize[T] with Deserialize[T] {
 
@@ -54,6 +41,14 @@ package object json {
       string <- implicitly[Deserialize[String]].deserialize(bytes)
       t <- parseJson(string)
     } yield t
+  }
+
+  /**
+    * Implementation of [[JsonCodec]] for `Json`
+    */
+  implicit lazy val jsonCodecJson: JsonCodec[Json] = new JsonCodec[Json] {
+    def toJson(t: Json): Json = t
+    def fromJson(json: Json): Option[Json] = safely(json)
   }
 
   /**
@@ -166,16 +161,8 @@ package object json {
       }
 
     /**
-      * Implementation of [[JsonCodec]] for `Json`
-      */
-    implicit object JsonCodecJson extends JsonCodec[Json] {
-      def toJson(t: Json): Json = t
-      def fromJson(json: Json): Option[Json] = safely(json)
-    }
-
-    /**
-      * Class implementing [[JsonCodec]] for 'List[T]' whenever `T` has an
-      * instances of [[JsonCodec]] in implicit scope.
+      * Implements [[JsonCodec]] for 'List[T]' whenever `T` has an instances of
+      * [[JsonCodec]] in implicit scope.
       *
       * @param codec A `JsonCodec` for the type `T`
       * @tparam T    A target/source type for the serializer.
@@ -189,12 +176,12 @@ package object json {
         def toJson(ts: List[T]): Json =
           Json.array(ts.map(codec.toJson))
 
-        def fromJson(json: Json): Option[List[T]] = json.array.flatMap
-          { jArr => jArr.map(json => codec.fromJson(json)).sequence }
+        def fromJson(json: Json): Option[List[T]] =
+          json.array.flatMap { _.traverse(codec.fromJson) }
       }
 
     /**
-      * Class implementing [[JsonCodec]] for 'List[T]' whenever `T` has an
+      * Implements [[JsonCodec]] for 'Map[String, T]' whenever `T` has an
       * instances of [[JsonCodec]] in implicit scope.
       *
       * @param codec A `JsonCodec` for the type `T`
@@ -206,16 +193,20 @@ package object json {
                                   implicit codec: JsonCodec[T]
                                 ): JsonCodec[Map[String, T]] =
       new JsonCodec[Map[String, T]] {
-        def toJson(t: Map[String, T]): Json = Json.assoc(t.mapValues(codec.toJson))
-        def fromJson(json: Json): Option[Map[String, T]] = json.assoc.flatMap
-          { jObj => jObj.mapValues(json => codec.fromJson(json)).sequence }
+
+        def toJson(t: Map[String, T]): Json =
+          Json.assoc(t.mapValues(codec.toJson))
+
+        def fromJson(json: Json): Option[Map[String, T]] =
+          json.assoc.flatMap { _.traverse(codec.fromJson) }
       }
 
     /**
-      * Class implementing [[JsonCodec]] for 'List[T]' whenever `T` has an
-      * instances of [[JsonCodec]] in implicit scope. JSON decodable as values
-      * of `T` are identified with `Some` values of `Option[T]`. A JSON `null`
-      * literal is identified with the `None` value of `Option[T]`.
+      * Implements [[JsonCodec]] for 'Option[T]' whenever `T` has an instances
+      * of [[JsonCodec]] in implicit scope. JSON decodable as values of `T` are
+      * identified with `Some` values of `Option[T]`. A JSON `null` literal is
+      * identified with the `None` value of `Option[T]`. When used on an object
+      * property, absence is considered a parse failure rather than a `None`.
       *
       * @param codec A `JsonCodec` for the type `T`
       * @tparam T    A target/source type for the serializer.
@@ -228,21 +219,151 @@ package object json {
         def toJson(t: Option[T]): Json = t.fold(Json.nul)(codec.toJson)
         def fromJson(json: Json): Option[Option[T]] =
           codec.fromJson(json) match {
-            case None => json.nul match {
-              case None => None
-              case Some(_) => Some(None)
-            }
             case Some(t) => Some(Some(t))
+            case None => json.nul match {
+              case Some(_) => Some(None)
+              case None => None
+            }
           }
       }
+
+    /**
+      * Implements [[JsonCodec]] for `Tuple2` whenever the component types
+      * have instances of [[JsonCodec]] in implicit scope.
+      */
+    implicit def jsonCodecTuple2[T1: JsonCodec, T2: JsonCodec]:
+    JsonCodec[(T1, T2)] = new JsonCodec[(T1, T2)] {
+      import JsonImplicits._
+      def toJson(t: (T1, T2)): Json = Json.obj(
+        "_1" -> json.toJson[T1](t._1),
+        "_2" -> json.toJson[T2](t._2)
+      )
+      def fromJson(j: Json): Option[(T1, T2)] = for {
+        _1 <- (j ~> "_1").flatMap(json.fromJson[T1])
+        _2 <- (j ~> "_2").flatMap(json.fromJson[T2])
+      } yield (_1, _2)
+    }
+
+    /**
+      * Implements [[JsonCodec]] for `Tuple3` whenever the component types
+      * have instances of [[JsonCodec]] in implicit scope.
+      */
+    implicit def jsonCodecTuple3[T1: JsonCodec, T2: JsonCodec, T3: JsonCodec]:
+    JsonCodec[(T1, T2, T3)] = new JsonCodec[(T1, T2, T3)] {
+      import JsonImplicits._
+      def toJson(t: (T1, T2, T3)): Json = Json.obj(
+        "_1" -> json.toJson[T1](t._1),
+        "_2" -> json.toJson[T2](t._2),
+        "_3" -> json.toJson[T3](t._3)
+      )
+      def fromJson(j: Json): Option[(T1, T2, T3)] = for {
+        _1 <- (j ~> "_1").flatMap(json.fromJson[T1])
+        _2 <- (j ~> "_2").flatMap(json.fromJson[T2])
+        _3 <- (j ~> "_3").flatMap(json.fromJson[T3])
+      } yield (_1, _2, _3)
+    }
+
+    /**
+      * Implements [[JsonCodec]] for `Tuple4` whenever the component types
+      * have instances of [[JsonCodec]] in implicit scope.
+      */
+    implicit def jsonCodecTuple4[T1: JsonCodec, T2: JsonCodec, T3: JsonCodec, T4: JsonCodec]:
+    JsonCodec[(T1, T2, T3, T4)] = new JsonCodec[(T1, T2, T3, T4)] {
+      import JsonImplicits._
+      def toJson(t: (T1, T2, T3, T4)): Json = Json.obj(
+        "_1" -> json.toJson[T1](t._1),
+        "_2" -> json.toJson[T2](t._2),
+        "_3" -> json.toJson[T3](t._3),
+        "_4" -> json.toJson[T4](t._4)
+      )
+      def fromJson(j: Json): Option[(T1, T2, T3, T4)] = for {
+        _1 <- (j ~> "_1").flatMap(json.fromJson[T1])
+        _2 <- (j ~> "_2").flatMap(json.fromJson[T2])
+        _3 <- (j ~> "_3").flatMap(json.fromJson[T3])
+        _4 <- (j ~> "_4").flatMap(json.fromJson[T4])
+      } yield (_1, _2, _3, _4)
+    }
+
+    /**
+      * Implements [[JsonCodec]] for `Tuple5` whenever the component types
+      * have instances of [[JsonCodec]] in implicit scope.
+      */
+    implicit def jsonCodecTuple5[T1: JsonCodec, T2: JsonCodec, T3: JsonCodec, T4: JsonCodec, T5: JsonCodec]:
+    JsonCodec[(T1, T2, T3, T4, T5)] = new JsonCodec[(T1, T2, T3, T4, T5)] {
+      import JsonImplicits._
+      def toJson(t: (T1, T2, T3, T4, T5)): Json = Json.obj(
+        "_1" -> json.toJson[T1](t._1),
+        "_2" -> json.toJson[T2](t._2),
+        "_3" -> json.toJson[T3](t._3),
+        "_4" -> json.toJson[T4](t._4),
+        "_5" -> json.toJson[T5](t._5)
+      )
+      def fromJson(j: Json): Option[(T1, T2, T3, T4, T5)] = for {
+        _1 <- (j ~> "_1").flatMap(json.fromJson[T1])
+        _2 <- (j ~> "_2").flatMap(json.fromJson[T2])
+        _3 <- (j ~> "_3").flatMap(json.fromJson[T3])
+        _4 <- (j ~> "_4").flatMap(json.fromJson[T4])
+        _5 <- (j ~> "_5").flatMap(json.fromJson[T5])
+      } yield (_1, _2, _3, _4, _5)
+    }
+
+    /**
+      * Implements [[JsonCodec]] for `Tuple6` whenever the component types
+      * have instances of [[JsonCodec]] in implicit scope.
+      */
+    implicit def jsonCodecTuple6[T1: JsonCodec, T2: JsonCodec, T3: JsonCodec, T4: JsonCodec, T5: JsonCodec, T6: JsonCodec]:
+    JsonCodec[(T1, T2, T3, T4, T5, T6)] = new JsonCodec[(T1, T2, T3, T4, T5, T6)] {
+      import JsonImplicits._
+      def toJson(t: (T1, T2, T3, T4, T5, T6)): Json = Json.obj(
+        "_1" -> json.toJson[T1](t._1),
+        "_2" -> json.toJson[T2](t._2),
+        "_3" -> json.toJson[T3](t._3),
+        "_4" -> json.toJson[T4](t._4),
+        "_5" -> json.toJson[T5](t._5),
+        "_6" -> json.toJson[T6](t._6)
+      )
+      def fromJson(j: Json): Option[(T1, T2, T3, T4, T5, T6)] = for {
+        _1 <- (j ~> "_1").flatMap(json.fromJson[T1])
+        _2 <- (j ~> "_2").flatMap(json.fromJson[T2])
+        _3 <- (j ~> "_3").flatMap(json.fromJson[T3])
+        _4 <- (j ~> "_4").flatMap(json.fromJson[T4])
+        _5 <- (j ~> "_5").flatMap(json.fromJson[T5])
+        _6 <- (j ~> "_6").flatMap(json.fromJson[T6])
+      } yield (_1, _2, _3, _4, _5, _6)
+    }
+
+    /**
+      * Implements [[JsonCodec]] for `Tuple7` whenever the component types
+      * have instances of [[JsonCodec]] in implicit scope.
+      */
+    implicit def jsonCodecTuple7[T1: JsonCodec, T2: JsonCodec, T3: JsonCodec, T4: JsonCodec, T5: JsonCodec, T6: JsonCodec, T7: JsonCodec]:
+    JsonCodec[(T1, T2, T3, T4, T5, T6, T7)] = new JsonCodec[(T1, T2, T3, T4, T5, T6, T7)] {
+      import JsonImplicits._
+      def toJson(t: (T1, T2, T3, T4, T5, T6, T7)): Json = Json.obj(
+        "_1" -> json.toJson[T1](t._1),
+        "_2" -> json.toJson[T2](t._2),
+        "_3" -> json.toJson[T3](t._3),
+        "_4" -> json.toJson[T4](t._4),
+        "_5" -> json.toJson[T5](t._5),
+        "_6" -> json.toJson[T6](t._6),
+        "_7" -> json.toJson[T7](t._7)
+      )
+      def fromJson(j: Json): Option[(T1, T2, T3, T4, T5, T6, T7)] = for {
+        _1 <- (j ~> "_1").flatMap(json.fromJson[T1])
+        _2 <- (j ~> "_2").flatMap(json.fromJson[T2])
+        _3 <- (j ~> "_3").flatMap(json.fromJson[T3])
+        _4 <- (j ~> "_4").flatMap(json.fromJson[T4])
+        _5 <- (j ~> "_5").flatMap(json.fromJson[T5])
+        _6 <- (j ~> "_6").flatMap(json.fromJson[T6])
+        _7 <- (j ~> "_7").flatMap(json.fromJson[T7])
+      } yield (_1, _2, _3, _4, _5, _6, _7)
+    }
   }
 
   /**
     * Used with Argonaut codec generation.
     */
-  implicit def encodeJson[T](
-                              implicit codec: JsonCodec[T]
-                            ): EncodeJson[T] =
+  implicit def encodeJson[T](implicit codec: JsonCodec[T]): EncodeJson[T] =
     new EncodeJson[T] {
       def encode(a: T): AJson = JsonS.toArgonaut(codec.toJson(a))
     }
@@ -250,9 +371,7 @@ package object json {
   /**
     * Used with Argonaut codec generation.
     */
-  implicit def decodeJson[T](
-                              implicit codec: JsonCodec[T]
-                            ): DecodeJson[T] =
+  implicit def decodeJson[T](implicit codec: JsonCodec[T]): DecodeJson[T] =
     new DecodeJson[T] {
       def decode(hcursor: HCursor): DecodeResult[T] =
         codec.fromJson(JsonS.fromArgonaut(hcursor.cursor.focus)) match {

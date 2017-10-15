@@ -31,16 +31,14 @@ package object avro {
     *   val bytes: Array[Byte] = serialize(awesome)
     * }}}
     */
-  implicit object SerializeSpecificRecord
-    extends Serialize[SpecificRecord] {
-
-    private val factory = EncoderFactory.get
+  implicit object SerializeSpecificRecord extends Serialize[SpecificRecord] {
 
     def serialize(t: SpecificRecord): Array[Byte] = {
       val output = new java.io.ByteArrayOutputStream
-      val encoder = factory.binaryEncoder(output, null)
+      val encoder = EncoderFactory.get.binaryEncoder(output, null)
+      val writer = new SpecificDatumWriter[SpecificRecord](t.getSchema)
 
-      new SpecificDatumWriter[SpecificRecord](t.getSchema).write(t, encoder)
+      writer.write(t, encoder)
       encoder.flush()
       output.close()
       output.toByteArray
@@ -85,11 +83,10 @@ package object avro {
   class DeserializeSpecificRecord[T >: Null <: SpecificRecord](schema: Schema)
     extends Deserialize[T] {
 
-    private val reader = new SpecificDatumReader[T](schema)
-    private val factory = DecoderFactory.get
-
     def deserialize(bytes: Array[Byte]): Option[T] = {
-      val decoder = factory.binaryDecoder(bytes, null)
+      val decoder = DecoderFactory.get.binaryDecoder(bytes, null)
+      val reader = new SpecificDatumReader[T](schema)
+
       safely(reader.read(null, decoder))
     }
   }

@@ -30,6 +30,9 @@ package object thrift {
     }
   }
 
+  def serializeThriftStruct[T <: ThriftStruct](t: T): Array[Byte] =
+    SerializeThriftStruct.serialize(t)
+
   /**
     * Create a [[Deserialize]]`[T]` instance for a scrooge-generated class `T`.
     *
@@ -49,7 +52,7 @@ package object thrift {
     * @param codec The scrooge-generated codec for `T` (usually just `T`)
     * @tparam T The scrooge-generated class you'd like to be able to deserialize
     */
-  class DeserializeThriftStruct[T <: ThriftStruct](codec : ThriftStructCodec[T])
+  class DeserializeThriftStruct[T <: ThriftStruct](codec: ThriftStructCodec[T])
     extends Deserialize[T] {
 
     def deserialize(bytes: Array[Byte]): Option[T] = {
@@ -62,4 +65,10 @@ package object thrift {
       })
     }
   }
+
+  def deserializeThriftStruct[T <: ThriftStruct](
+                                                  codec: ThriftStructCodec[T],
+                                                  bytes: Array[Byte]
+                                                ): Option[T] =
+    new DeserializeThriftStruct[T](codec).deserialize(bytes)
 }

@@ -3,6 +3,7 @@ package com.cj.serialization
 package object yaml {
 
   import com.cj.serialization.json.Json
+  import traversals._
 
   trait YamlCodec[T] extends Serialize[T] with Deserialize[T] {
 
@@ -22,6 +23,11 @@ package object yaml {
       string <- implicitly[Deserialize[String]].deserialize(bytes)
       t <- parseYaml(string)
     } yield t
+  }
+
+  implicit object YamlCodecYaml extends YamlCodec[Yaml] {
+    def toYaml(t: Yaml): Yaml = t
+    def fromYaml(yaml: Yaml): Option[Yaml] = safely(yaml)
   }
 
   def toYaml[T: YamlCodec](t: T): Yaml =
@@ -47,11 +53,6 @@ package object yaml {
         def fromYaml(yaml: Yaml): Option[T] = from(yaml)
       }
 
-    implicit object YamlCodecYaml extends YamlCodec[Yaml] {
-      def toYaml(t: Yaml): Yaml = t
-      def fromYaml(yaml: Yaml): Option[Yaml] = safely(yaml)
-    }
-
     implicit object YamlCodecJson extends YamlCodec[Json] {
 
       // This transformation is lossy
@@ -59,8 +60,6 @@ package object yaml {
       // then toYaml(j) = foo: 0
       // and then fromYaml(toYaml(j)) = Some({"foo": 0}) != Some(j)
       // TODO: implement a YAML ADT that allows for a lossless JSON translation
-
-      import scalaz._, Scalaz._
 
       def toYaml(t: Json): Yaml =
         t.fold[Yaml](
@@ -95,12 +94,12 @@ package object yaml {
             case _ =>
               None
           },
-          withSeq = array => array.map(fromYaml).sequence.map(Json.array),
+          withSeq = array => array.traverse(fromYaml).map(Json.array),
           withMap = assoc => {
-            assoc.map({ case (ykey, yval) => ykey.scalar match {
+            assoc.toList.traverse({ case (ykey, yval) => ykey.scalar match {
               case None => None
               case Some(raw) => (raw, fromYaml(yval)).sequence
-            }}).toList.sequence.map(pairs => Json.assoc(pairs.toMap))
+            }}).map(pairs => Json.assoc(pairs.toMap))
           },
           withStream = _ => None
         )
@@ -148,15 +147,13 @@ package object yaml {
                                  ): YamlCodec[List[T]] =
       new YamlCodec[List[T]] {
 
-        import scalaz._, Scalaz._
-
         def toYaml(t: List[T]): Yaml =
           Yaml.array(t.map(ev.toYaml))
 
         def fromYaml(yaml: Yaml): Option[List[T]] =
           yaml.array match {
             case None => None
-            case Some(ys) => ys.map(ev.fromYaml).sequence
+            case Some(ys) => ys.traverse(ev.fromYaml)
           }
       }
 
@@ -167,8 +164,6 @@ package object yaml {
                                    ): YamlCodec[Map[K, V]] =
       new YamlCodec[Map[K, V]] {
 
-        import scalaz._, Scalaz._
-
         def toYaml(t: Map[K, V]): Yaml =
           Yaml.assoc(t.map(kv => (ev1.toYaml(kv._1), ev2.toYaml(kv._2))))
 
@@ -176,10 +171,10 @@ package object yaml {
           yaml.assoc match {
             case None => None
             case Some(map) =>
-              map.toList.map(kv => for {
+              map.toList.traverse(kv => for {
                 k <- ev1.fromYaml(kv._1)
                 v <- ev2.fromYaml(kv._2)
-              } yield (k, v)).sequence.map(_.toMap)
+              } yield (k, v)).map(_.toMap)
           }
       }
 
@@ -189,15 +184,13 @@ package object yaml {
                                    ): YamlCodec[Stream[T]] =
       new YamlCodec[Stream[T]] {
 
-        import scalaz._, Scalaz._
-
         def toYaml(t: Stream[T]): Yaml =
           Yaml.stream(t.map(ev.toYaml))
 
         def fromYaml(yaml: Yaml): Option[Stream[T]] =
           yaml.stream match {
             case None => None
-            case Some(stream) => stream.map(ev.fromYaml).sequence
+            case Some(stream) => stream.traverse(ev.fromYaml)
           }
       }
   }

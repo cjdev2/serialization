@@ -1,7 +1,7 @@
 package com.cj.serialization
 package json
 
-import scalaz._, Scalaz._
+import traversals._
 
 sealed abstract class Json extends Product with Serializable {
 
@@ -14,9 +14,9 @@ sealed abstract class Json extends Product with Serializable {
                withString: String => X,
                withArray: List[X] => X,
                withAssoc: Map[String, X] => X
-             ):X = {
+             ): X = {
 
-    val cont: Json => X =
+    val recurse: Json => X =
       _.fold(withNull,withBoolean,withNumber,withString,withArray,withAssoc)
 
     this match {
@@ -24,8 +24,8 @@ sealed abstract class Json extends Product with Serializable {
       case JBool(p) => withBoolean(p)
       case JNumber(x) => withNumber(x)
       case JString(x) => withString(x)
-      case JArray(x) => withArray(x.map(cont))
-      case JAssoc(x) => withAssoc(x.mapValues(cont))
+      case JArray(x) => withArray(x.map(recurse))
+      case JAssoc(x) => withAssoc(x.mapValues(recurse))
     }
   }
 
@@ -86,11 +86,12 @@ sealed abstract class Json extends Product with Serializable {
     case _ => None
   }
 
-  def ><[A](f: Json => Option[A]): Option[List[A]] = this.array.flatMap(
-    jsons => jsons.map(json => f(json)).sequence)
+  def ><[A](f: Json => Option[A]): Option[List[A]] =
+    this.array.flatMap(_.traverse(f))
 
-  def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] = this.array.flatMap(
-    jsons => jsons.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j))))
+  def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] = this.array.flatMap {
+    _.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
+  }
 
   def print: String = JsonS.print(this)
 
@@ -197,31 +198,31 @@ object JsonImplicits {
       optionJson.flatMap(_.~>(key))
 
     def ><[A](f: Json => Option[A]): Option[List[A]] =
-      optionJson.array.flatMap(list => list.map(json => f(json)).sequence)
+      optionJson.array.flatMap(_.traverse(f))
 
     def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
       optionJson.array.flatMap { jsons =>
-        jsons.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j)))
+        jsons.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
       }
   }
 
   implicit class JsonTraversalList(x: List[Json]) {
 
     def ><[A](f: Json => Option[A]): Option[List[A]] =
-      x.map(js => js >< {j => f(j)}).sequence.map(_.flatten)
+      x.traverse(_ >< f).map(_.flatten)
 
     def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
-      x.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j)))
+      x.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
   }
 
   implicit class JsonTraversalListOp(opX: Option[List[Json]]) {
 
     def ><[A](f: Json => Option[A]): Option[List[A]] =
-      opX.flatMap(x => x.map(js => js >< {j => f(j)}).sequence.map(_.flatten))
+      opX.flatMap { _.traverse(_ >< f).map(_.flatten) }
 
     def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
       opX.flatMap { x =>
-        x.foldLeft(Option(z))((aOp, j) => aOp.flatMap(a => f(a, j)))
+        x.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
       }
   }
 }

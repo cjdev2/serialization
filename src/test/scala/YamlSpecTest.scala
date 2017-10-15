@@ -191,8 +191,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     actual should be(expected)
   }
 
+  // TODO: SnakeYaml interprets timestrings as seconds after midnight
   ignore should "correctly parse play by play feed from a game" in {
-    // TODO: SnakeYaml, unfortunately, interprets timestrings as seconds after midnight
     // given
     val raw: String =
       """---
@@ -277,8 +277,8 @@ class YamlSpecTest extends FlatSpec with Matchers {
     actual should be(expected)
   }
 
+  // TODO: SnakeYaml, interprets datestrings as java datetimes
   ignore should "correctly parse Mapping between Sequences" in {
-    // TODO: SnakeYaml, unfortunately, interprets datestrings as java datetimes
     // given
     val raw: String =
       """? - Detroit Tigers

@@ -12,7 +12,7 @@ object JsonDemo extends App {
 
   import com.cj.serialization._
   import com.cj.serialization.json._, JsonImplicits._
-  import scalaz._, Scalaz._ // Not required, but you'll be glad you did...
+  import com.cj.serialization.traversals._ // Not required, but you'll be glad you did...
 
   // TODO: Case Classes and Automatic Codec Generation
 
@@ -44,16 +44,16 @@ object JsonDemo extends App {
   //     parseJson:    String      => Result[Person]
   //     fromJson:     Json        => Result[Person]
   //
-  // which satisfy the following contract:
+  // which satisfy the following contracts concerning round trips:
   //
-  //     fromJson(toJson(t))        == Result.safely(t)
-  //     parseJson(printJson(t))    == Result.safely(t)
-  //     parseJson(prettyJson(t))   == Result.safely(t)
-  //     deserialize(serialize(t))  == Result.safely(t)
+  //     fromJson(toJson(t))        == Some(t)
+  //     parseJson(printJson(t))    == Some(t)
+  //     parseJson(prettyJson(t))   == Some(t)
+  //     deserialize(serialize(t))  == Some(t)
   //
-  //     fromJson(json) map toJson flatMap fromJson == fromJson(json)
-  //     parseJson(string) map printJson flatMap parseJson == parseJson(string)
-  //     parseJson(string) map prettyJson flatMap parseJson == parseJson(string)
+  //     fromJson(json) map toJson flatMap fromJson           == fromJson(json)
+  //     parseJson(string) map printJson flatMap parseJson    == parseJson(string)
+  //     parseJson(string) map prettyJson flatMap parseJson   == parseJson(string)
   //     deserialize(bytes) map serialize flatMap deserialize == deserialize(bytes)
   //
   // The contract ensure that our implementation is reasonable and coherent.
@@ -354,7 +354,7 @@ object JsonDemo extends App {
       // Provide a `Json => Result[ClassyMap]`.
       from = (json: Json) => for {
         jsons <- json.array
-        assocs <- jsons.map(_.assoc).sequence // This is why we like scalaz.
+        assocs <- jsons.map(_.assoc).sequence // This is why we imported `traversals`.
         pairs <- assocs.map(obj => for {
           kJson <- obj.get("k")
           kNum <- kJson.number
