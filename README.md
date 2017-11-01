@@ -17,20 +17,12 @@ For core features add:
 ```xml
 <dependency>
     <groupId>com.cj</groupId>
-    <artifactId>serialization</artifactId>
-    <version>1.2</version>
+    <artifactId>serialization_2.11</artifactId>
+    <version>1.4</version>
 </dependency>
 ```
 
-For JSON, also add:
-
-```xml
-<dependency>
-    <groupId>io.argonaut</groupId>
-    <artifactId>argonaut_2.11</artifactId>
-    <version>6.2</version>
-</dependency>
-```
+For modularity, Avro, Thrift, and Scrooge are not added to your dependencies by default. To use these features, add them to your pom.
 
 ## Usage
 
