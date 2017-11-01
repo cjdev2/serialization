@@ -119,27 +119,6 @@
             </plugin>
 
             <plugin>
-                <groupId>org.apache.thrift.tools</groupId>
-                <artifactId>maven-thrift-plugin</artifactId>
-                <version>${maven-thrift-plugin_version}</version>
-                <configuration>
-                    <generator>java</generator>
-                    <outputDirectory>
-                        target/generated-test-sources/thrift
-                    </outputDirectory>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>thrift-test-sources</id>
-                        <phase>generate-test-sources</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
                 <groupId>com.twitter</groupId>
                 <artifactId>scrooge-maven-plugin</artifactId>
                 <version>${scrooge_version}</version>
