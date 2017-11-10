@@ -85,21 +85,6 @@ sealed abstract class Json extends Product with Serializable {
     case _ => None
   }
 
-  def +(pair: (String, Json)): Option[Json] = this match {
-    case JAssoc(obj) => Some(JAssoc(obj + pair))
-    case _ => None
-  }
-
-//  def +:(elem: Json): Option[Json] = this match {
-//    case JArray(arr) => Some(JArray(elem +: arr))
-//    case _ => None
-//  }
-
-  def :+(elem: Json): Option[Json] = this match {
-    case JArray(arr) => Some(JArray(arr :+ elem))
-    case _ => None
-  }
-
   def ><[A](f: Json => Option[A]): Option[List[A]] =
     this.array.flatMap(_.traverse(f))
 
@@ -209,21 +194,6 @@ object JsonImplicits {
     def ~>(key: Int): Option[Json] =
       self.flatMap(_.~>(key))
 
-    def +(pair: (String, Json)): Option[Json] = self match {
-      case Some(JAssoc(obj)) => Some(JAssoc(obj + pair))
-      case _ => None
-    }
-
-//    def +:(elem: Json): Option[Json] = self match {
-//      case Some(JArray(arr)) => Some(JArray(elem +: arr))
-//      case _ => None
-//    }
-
-    def :+(elem: Json): Option[Json] = self match {
-      case Some(JArray(arr)) => Some(JArray(arr :+ elem))
-      case _ => None
-    }
-
     def ><[A](f: Json => Option[A]): Option[List[A]] =
       self.array.flatMap(_.traverse(f))
 
@@ -251,6 +221,16 @@ object JsonImplicits {
       self.flatMap { x =>
         x.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
       }
+  }
+
+  implicit class JsonPair(val self: (String, Json)) extends AnyVal {
+
+    def ~>(other: Json): Option[Json] = other match {
+      case JAssoc(obj) => Some(JAssoc(obj + self))
+      case _ => None
+    }
+
+    def ~>(other: Option[Json]): Option[Json] = other flatMap ~>
   }
 }
 
