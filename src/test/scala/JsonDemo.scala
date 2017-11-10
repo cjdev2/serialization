@@ -14,6 +14,8 @@ object JsonDemo extends App {
   import com.cj.serialization.json._, JsonImplicits._
   import com.cj.serialization.traversals._ // Not required, but you'll be glad you did...
 
+
+
   // TODO: Case Classes and Automatic Codec Generation
 
   // Some grade-A, domain-driven case class action right here.

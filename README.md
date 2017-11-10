@@ -22,7 +22,15 @@ For core features add:
 </dependency>
 ```
 
-For modularity, Avro, Thrift, and Scrooge are not added to your dependencies by default. To use these features, add them to your pom.
+Avro, Thrift, and Scrooge are not added to you project dependencies by default. To use them, to your POM as normal. E.g.:
+
+```xml
+<dependency>
+    <groupId>org.apache.avro</groupId>
+    <artifactId>avro</artifactId>
+    <version>1.8.2</version>
+</dependency>
+```
 
 ## Usage
 
@@ -30,23 +38,18 @@ Full documentation available upon build at "target/site/scaladocs/index.html"
 
 ### Core Features
 
-The basic notions of the library are the traits `Serialize[T]` and `Deserialize[T]`, the functions `serialize` and `deserialize`, and the wrapper `Result[T]`.
+The basic notions of the library are the traits `Serialize[T]` and `Deserialize[T]`, and their methods `serialize` and `deserialize`.
 
 ```scala
 trait Serialize[-T] {
   def serialize(t: T): Array[Byte]
 }
 trait Deserialize[+T] {
-  def deserialize(bytes: Array[Byte]): Result[T]
+  def deserialize(bytes: Array[Byte]): Option[T]
 }
 
 def serialize[T: Serialize](t: T): Array[Byte]
-def deserialize[T: Deserialize](bytes: Array[Byte]): Result[T]
-
-class Result[T] {
-  def fold[X](withFailure: String => X, withSuccess: T => X): X
-  ...  
-}
+def deserialize[T: Deserialize](bytes: Array[Byte]): Option[T]
 ```
 
 Import core features as:
@@ -64,18 +67,17 @@ case class Foo(bar: Int)
 
 // implement `serialize`
 implicit object FooSerializer extends Serialize[Foo] {
-  def serialize(t: Foo): Array[Byte] =
-    t.toString.getBytes
+  def serialize(t: Foo): Array[Byte] = t.toString.getBytes
 }
 
-// implement `deserialize` (always the hard part)
+// implement `deserialize`
 implicit object FooDeserializer extends Deserialize[Foo] {
-  def deserialize(bytes: Array[Byte]): Result[Foo] = {
+  def deserialize(bytes: Array[Byte]): Option[Foo] = {
     val string: String = new String(bytes)
     val regex = "Foo\\((\\d+)\\)".r
 
     string match {
-      case regex(int) => Option(Foo(int.toInt))
+      case regex(digits) => Option(Foo(digits.toInt))
       case _ => None
     }
   }
@@ -95,24 +97,24 @@ assert(
 )
 assert(
   // `deserialize` fails gracefully on incoherent input
-  deserialize[Foo](incoherentBytes).isFailure
+  deserialize[Foo](incoherentBytes).isEmpty
 )
 ```
 
 See "src/test/scala/SerializationDemo.scala" for details.
 
-### JSON/Argonaut Integration
+### JSON Features
 
-The library integrates with and can act as a simple wrapper over Argonaut, a pure functional JSON library for Scala.
-
-Import JSON/Argonaut integration as:
+_Serialization_ a native Scala AST for representing JSON and embedded DSLs for constructing and parsing JSON values, using the fabulous _Argonaut_ library as a backend. We do a pretty good job or wrapping _Argonaut_, so no outside knowledge is required to use these features.
 
 ```scala
-import argonaut.Argonaut
-import com.cj.serialization.json._
+import com.cj.serialization.json._, JsonImplicits._
+
+val jsonString = """{"foo": "bar", "baz": [1,2,3]}"""
+val jsonAST = Json.obj("foo" -> "bar", "baz" -> List(1,2,3))
 ```
 
-As the library acts as a simple wrapper, no knowledge of Argonaut is requires to use the JSON features. The one thing you need to learn to do is invoke the `casecodecN` functions, as is done below.
+We can piggy-back 
 
 ```scala
 case class Person(
