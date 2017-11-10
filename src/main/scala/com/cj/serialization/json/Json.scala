@@ -2,10 +2,9 @@ package com.cj.serialization
 package json
 
 import traversals._
+import JsonS._
 
 sealed abstract class Json extends Product with Serializable {
-
-  import JsonS._
 
   def fold[X](
                withNull: => X,
@@ -86,6 +85,21 @@ sealed abstract class Json extends Product with Serializable {
     case _ => None
   }
 
+  def +(pair: (String, Json)): Option[Json] = this match {
+    case JAssoc(obj) => Some(JAssoc(obj + pair))
+    case _ => None
+  }
+
+//  def +:(elem: Json): Option[Json] = this match {
+//    case JArray(arr) => Some(JArray(elem +: arr))
+//    case _ => None
+//  }
+
+  def :+(elem: Json): Option[Json] = this match {
+    case JArray(arr) => Some(JArray(arr :+ elem))
+    case _ => None
+  }
+
   def ><[A](f: Json => Option[A]): Option[List[A]] =
     this.array.flatMap(_.traverse(f))
 
@@ -99,8 +113,6 @@ sealed abstract class Json extends Product with Serializable {
 }
 
 object Json {
-
-  import JsonS._
 
   def nul: Json = JNull
   def bool(p: Boolean): Json = JBool(p)
@@ -132,96 +144,111 @@ sealed trait ToJson {
 
 object JsonImplicits {
 
-  implicit class JsonToJson(x: Json) extends ToJson {
-    def toJson: Json = x
+  implicit class JsonToJson(self: Json) extends ToJson {
+    def toJson: Json = self
   }
 
-  implicit class UnitToJson(x: Unit) extends ToJson {
+  implicit class UnitToJson(self: Unit) extends ToJson {
     def toJson: Json = Json.nul
   }
 
-  implicit class BoolToJson(x: Boolean) extends ToJson {
-    def toJson: Json = Json.bool(x)
+  implicit class BoolToJson(self: Boolean) extends ToJson {
+    def toJson: Json = Json.bool(self)
   }
 
-  implicit class BigDecimalToJson(x: BigDecimal) extends ToJson {
-    def toJson: Json = Json.number(x)
+  implicit class BigDecimalToJson(self: BigDecimal) extends ToJson {
+    def toJson: Json = Json.number(self)
   }
 
-  implicit class LongToJson(x: Long) extends ToJson {
-    def toJson: Json = Json.number(BigDecimal(x))
+  implicit class LongToJson(self: Long) extends ToJson {
+    def toJson: Json = Json.number(BigDecimal(self))
   }
 
-  implicit class IntToJson(x: Int) extends ToJson {
-    def toJson: Json = Json.number(BigDecimal(x))
+  implicit class IntToJson(self: Int) extends ToJson {
+    def toJson: Json = Json.number(BigDecimal(self))
   }
 
-  implicit class DoubleToJson(x: Double) extends ToJson {
-    def toJson: Json = Json.number(BigDecimal(x))
+  implicit class DoubleToJson(self: Double) extends ToJson {
+    def toJson: Json = Json.number(BigDecimal(self))
   }
 
-  implicit class FloatToJson(x: Float) extends ToJson {
-    def toJson: Json = Json.number(BigDecimal(x))
+  implicit class FloatToJson(self: Float) extends ToJson {
+    def toJson: Json = Json.number(BigDecimal(self))
   }
 
-  implicit class StringToJson(x: String) extends ToJson {
-    def toJson: Json = Json.string(x)
+  implicit class StringToJson(self: String) extends ToJson {
+    def toJson: Json = Json.string(self)
   }
 
-  implicit class OptionToJson[A <: ToJson](x: Option[A]) extends ToJson {
-    def toJson: Json = x.fold(Json.nul)(_.toJson)
+  implicit class OptionToJson[A <: ToJson](self: Option[A]) extends ToJson {
+    def toJson: Json = self.fold(Json.nul)(_.toJson)
   }
 
-  implicit class ListToJson[A <: ToJson](x: List[A]) extends ToJson {
-    def toJson: Json = Json.array(x.map(_.toJson))
+  implicit class ListToJson[A <: ToJson](self: List[A]) extends ToJson {
+    def toJson: Json = Json.array(self.map(_.toJson))
   }
 
-  implicit class MapToJson[A <: ToJson](x: Map[String, Json]) extends ToJson {
-    def toJson: Json = Json.assoc(x.mapValues(_.toJson))
+  implicit class MapToJson[A <: ToJson](self: Map[String, Json]) extends ToJson {
+    def toJson: Json = Json.assoc(self.mapValues(_.toJson))
   }
 
-  implicit class JsonOp(optionJson: Option[Json]) {
+  implicit class JsonOp(val self: Option[Json]) extends AnyVal {
 
-    def nul: Option[Unit] = optionJson.flatMap(_.nul)
-    def bool: Option[Boolean] = optionJson.flatMap(_.bool)
-    def number: Option[BigDecimal] = optionJson.flatMap(_.number)
-    def long: Option[Long] = optionJson.flatMap(_.long)
-    def double: Option[Double] = optionJson.flatMap(_.double)
-    def string: Option[String] = optionJson.flatMap(_.string)
-    def array: Option[List[Json]] = optionJson.flatMap(_.array)
-    def assoc: Option[Map[String, Json]] = optionJson.flatMap(_.assoc)
+    def nul: Option[Unit] = self.flatMap(_.nul)
+    def bool: Option[Boolean] = self.flatMap(_.bool)
+    def number: Option[BigDecimal] = self.flatMap(_.number)
+    def long: Option[Long] = self.flatMap(_.long)
+    def double: Option[Double] = self.flatMap(_.double)
+    def string: Option[String] = self.flatMap(_.string)
+    def array: Option[List[Json]] = self.flatMap(_.array)
+    def assoc: Option[Map[String, Json]] = self.flatMap(_.assoc)
 
     def ~>(key: String): Option[Json] =
-      optionJson.flatMap(_.~>(key))
+      self.flatMap(_.~>(key))
 
     def ~>(key: Int): Option[Json] =
-      optionJson.flatMap(_.~>(key))
+      self.flatMap(_.~>(key))
+
+    def +(pair: (String, Json)): Option[Json] = self match {
+      case Some(JAssoc(obj)) => Some(JAssoc(obj + pair))
+      case _ => None
+    }
+
+//    def +:(elem: Json): Option[Json] = self match {
+//      case Some(JArray(arr)) => Some(JArray(elem +: arr))
+//      case _ => None
+//    }
+
+    def :+(elem: Json): Option[Json] = self match {
+      case Some(JArray(arr)) => Some(JArray(arr :+ elem))
+      case _ => None
+    }
 
     def ><[A](f: Json => Option[A]): Option[List[A]] =
-      optionJson.array.flatMap(_.traverse(f))
+      self.array.flatMap(_.traverse(f))
 
     def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
-      optionJson.array.flatMap { jsons =>
+      self.array.flatMap { jsons =>
         jsons.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
       }
   }
 
-  implicit class JsonTraversalList(x: List[Json]) {
+  implicit class JsonTraversalList(val self: List[Json]) extends AnyVal {
 
     def ><[A](f: Json => Option[A]): Option[List[A]] =
-      x.traverse(_ >< f).map(_.flatten)
+      self.traverse(_ >< f).map(_.flatten)
 
     def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
-      x.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
+      self.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
   }
 
-  implicit class JsonTraversalListOp(opX: Option[List[Json]]) {
+  implicit class JsonTraversalListOp(val self: Option[List[Json]]) extends AnyVal {
 
     def ><[A](f: Json => Option[A]): Option[List[A]] =
-      opX.flatMap { _.traverse(_ >< f).map(_.flatten) }
+      self.flatMap { _.traverse(_ >< f).map(_.flatten) }
 
     def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] =
-      opX.flatMap { x =>
+      self.flatMap { x =>
         x.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
       }
   }

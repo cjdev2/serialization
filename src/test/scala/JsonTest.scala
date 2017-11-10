@@ -1,11 +1,12 @@
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 
+import com.cj.serialization._
+import com.cj.serialization.json._, JsonImplicits._, JsonCodec._
+
 class JsonTest extends FlatSpec with Matchers with PropertyChecks {
 
-  import com.cj.serialization._
-  import com.cj.serialization.json._, JsonImplicits._, JsonCodec._
-  import Fixtures._
+  import JsonTest._
 
   "JsonDemo" should "not be out of date" in {
     JsonDemo.main(args = Array[String]())
@@ -372,237 +373,320 @@ class JsonTest extends FlatSpec with Matchers with PropertyChecks {
     bytesTestCases.foreach(bytesRightPseudoInverseTestCase[Pair])
   }
 
-  object Fixtures {
+  "Json.+" should "make a new Json from an existing Json with a new pair" in {
+    // given
+    val existingJson = jsonBruce
+    val existingSomeJson = Some(existingJson)
+    val existingNoneJson = None
+    val newPair = "father" -> Json("Thomas Wayne")
 
-    case class Key(get: Int)
-    case class Value(get: String)
-    case class Pair(key: Key, value: Value)
+    // when
+    val newJson = existingJson + newPair
+    val newSomeJson = existingSomeJson + newPair
+    val newNoneJson = existingNoneJson + newPair
 
-    val pair: Pair = Pair(Key(5),Value("foo"))
-
-    val jsonPair1: Json = Json.obj(
-      "key" -> Json.obj("get" -> 5),
-      "value" -> Json.obj("get" -> "foo")
-    )
-
-    val stringPair1: String =
-      s"""{
-         |  "key" : { "get" : 5 },
-         |  "value" : { "get" : "foo }
-         |}""".stripMargin
-
-    val bytesPair1: Array[Byte] = stringPair1.getBytes("UTF-8")
-
-    def pairToJson(pair: Pair): Json = Json.obj(
-      "key" -> pair.key.get,
-      "value" -> pair.value.get
-    )
-
-    def jsonToPair(json: Json): Option[Pair] = for {
-      propList <- json.assoc
-      keyJson <- propList.get("key")
-      keyJNum <- keyJson.number
-      key <- scala.util.Try(keyJNum.toInt).toOption.flatMap(Option.apply)
-      valueJson <- propList.get("value")
-      value <- valueJson.string
-    } yield Pair(Key(key), Value(value))
-
-    val jsonPair2: Json = Json.obj(
-      "key" -> 5,
-      "value" -> "foo"
-    )
-
-    val stringPair2: String = """{"key":5,"value":"foo"}"""
-
-    val bytesPair2: Array[Byte] = stringPair2.getBytes("UTF-8")
-
-    case class Person(
-                       name: String,
-                       age: Int,
-                       things: List[String],
-                       mother: Option[String]
-                     )
-
-    val personTim: Person =
-      Person("Tim Drake",19,List("Bo"),Some("Janet Drake"))
-
-    val personBruce: Person =
-      Person("Bruce Wayne",38,List("Money", "Alfred"),Some("Martha Wayne"))
-
-    val personBatman: Person =
-      Person("Batman",38,List("Batarang", "Batmobile"),None)
-
-    val jsonTim: Json = Json.obj(
-      "name" -> "Tim Drake",
-      "age" -> 19,
-      "things" -> Json.arr("Bo"),
-      "mother" -> "Janet Drake"
-    )
-
-    val jsonBruce: Json = Json.obj(
-      "name" -> "Bruce Wayne",
-      "age" -> 38,
-      "things" -> Json.arr("Money", "Alfred"),
-      "mother" -> "Martha Wayne"
-    )
-
-    val jsonBatman: Json = Json.obj(
-      "name" -> "Batman",
-      "age" -> 38,
-      "things" -> Json.arr("Batarang", "Batmobile")
-    )
-
-    val jsonNested: Json = Json.obj(
-      "this" -> "that",
-      "those" -> Json.arr("these", "others"),
-      "me" -> jsonTim,
-      "them" -> Json.arr(jsonBruce, jsonBatman)
-    )
-
-    val jsonWithCharacter: Json = Json.obj(
-      "name" -> "Daniel",
-      "favorite_game" -> "¡Pokémon Snap!"
-    )
-
-    val jsonBruceFrench: Json = Json.obj(
-      "prénome" -> "Bruce Wayne",
-      "âge" -> 38,
-      "des_choses" -> Json.arr("Le Argent", "Alfred"),
-      "mère" -> "Martha Wayne"
-    )
-
-    val stringTim: String =
-      """{"name":"Tim Drake","age":19,"things":["Bo"],"mother":"Janet Drake"}"""
-
-    val stringBruce: String =
-      """{
-        |  "name" : "Bruce Wayne",
-        |  "age" : 38,
-        |  "things" : [
-        |    "Money",
-        |    "Alfred"
-        |  ],
-        |  "mother" : "Martha Wayne"
-        |}""".stripMargin
-
-    val stringBatman: String =
-      """{"name":"Batman","age":38,"things":["Batarang","Batmobile"]}"""
-
-    val stringNested: String =
-      """{
-         |  "this" : "that",
-         |  "those" : [
-         |    "these",
-         |    "others"
-         |  ],
-         |  "me" : {
-         |    "name" : "Tim Drake",
-         |    "age" : 19,
-         |    "things" : [
-         |      "Bo"
-         |    ],
-         |    "mother" : "Janet Drake"
-         |  },
-         |  "them" : [
-         |    {
-         |      "name" : "Bruce Wayne",
-         |      "age" : 38,
-         |      "things" : [
-         |        "Money",
-         |        "Alfred"
-         |      ],
-         |      "mother" : "Martha Wayne"
-         |    },
-         |    {
-         |      "name" : "Batman",
-         |      "age" : 38,
-         |      "things" : [
-         |        "Batarang",
-         |        "Batmobile"
-         |      ]
-         |    }
-         |  ]
-         |}""".stripMargin
-
-    val stringWithCharacter: String =
-      """{
-        |  "name" : "Daniel",
-        |  "favorite_game" : "¡Pokémon Snap!"
-        |}
-      """.stripMargin
-
-    val stringBruceFrench: String =
-      """{
-        |  "prénome" : "Bruce Wayne",
-        |  "âge" : 38,
-        |  "des_choses" : [
-        |    "Le Argent:,
-        |    "Alfred"
-        |  ],
-        |  "mère" : "Martha Wayne"
-        |}""".stripMargin
-
-    val bytesTim: Array[Byte] = stringTim.getBytes("UTF-8")
-
-    val bytesBruce: Array[Byte] = stringBruce.getBytes("UTF-8")
-
-    val bytesBatman: Array[Byte] = stringBatman.getBytes("UTF-8")
-
-    val bytesNested: Array[Byte] = stringNested.getBytes("UTF-8")
-
-    val bytesWithCharacter: Array[Byte] = stringWithCharacter.getBytes("UTF-8")
-
-    val bytesBruceFrench: Array[Byte] = stringBruceFrench.getBytes("UTF-8")
-
-    def leftInverseTestCase[T: JsonCodec](t: T): Unit = {
-      assert(
-        fromJson[T](toJson[T](t)).contains(t)
-      )
-      assert(
-        parseJson[T](printJson[T](t)).contains(t)
-      )
-      assert(
-        parseJson[T](prettyJson[T](t)).contains(t)
-      )
-      assert(
-        deserialize[T](serialize[T](t)).contains(t)
-      )
+    // then
+    withClue("For pure Json: ") {
+      newJson shouldBe Some(Json.obj(
+        "name" -> "Bruce Wayne",
+        "age" -> 38,
+        "things" -> Json.arr("Money", "Alfred"),
+        "mother" -> "Martha Wayne",
+        "father" -> "Thomas Wayne"
+      ))
     }
-
-    def jsonRightPseudoInverseTestCase[T: JsonCodec](json: Json)
-    : Unit = {
-      assert(
-        fromJson[T](json)
-          .map(toJson[T])
-          .flatMap(fromJson[T])
-          == fromJson[T](json)
-      )
+    withClue("For Some Json: ") {
+      newSomeJson shouldBe Some(Json.obj(
+        "name" -> "Bruce Wayne",
+        "age" -> 38,
+        "things" -> Json.arr("Money", "Alfred"),
+        "mother" -> "Martha Wayne",
+        "father" -> "Thomas Wayne"
+      ))
     }
-
-    def stringRightPseudoInverseTestCase[T: JsonCodec](string: String)
-    : Unit = {
-      assert(
-        parseJson[T](string)
-          .map(printJson[T])
-          .flatMap(parseJson[T])
-          == parseJson[T](string)
-      )
-      assert(
-        parseJson[T](string)
-          .map(prettyJson[T])
-          .flatMap(parseJson[T])
-          == parseJson[T](string)
-      )
+    withClue("For None Json: ") {
+      newNoneJson shouldBe None
     }
+  }
 
-    def bytesRightPseudoInverseTestCase[T: JsonCodec](bytes: Array[Byte])
-    : Unit = {
-      assert(
-        deserialize[T](bytes)
-          .map(serialize[T])
-          .flatMap(deserialize[T])
-          == deserialize[T](bytes)
-      )
+  "Json.:+" should "make a new Json by appending a new element onto an existing Json" in {
+    // given
+    val existingJson = Json.arr(1, 2, 3)
+    val existingSomeJson = Some(existingJson)
+    val existingNoneJson = None
+
+    // when
+    val newJson = existingJson :+ Json(4)
+    val newSomeJson = existingSomeJson :+ Json(4)
+    val newNoneJson = existingNoneJson :+ Json(4)
+
+    // then
+    withClue("For pure Json: ") {
+      newJson shouldBe Some(Json.arr(1, 2, 3, 4))
     }
+    withClue("For Some Json: ") {
+      newSomeJson shouldBe Some(Json.arr(1, 2, 3, 4))
+    }
+    withClue("For None Json: ") {
+      newNoneJson shouldBe None
+    }
+  }
+
+//  "Json.+:" should "make a new Json by prepending a new element onto an existing Json" in {
+//    // given
+//    val existingJson = Json.arr(2, 3, 4)
+//    val existingSomeJson = Some(existingJson)
+//    val existingNoneJson = None
+//
+//    // when
+//    val newJson = existingJson +: Json(1)
+//    // TODO: what the hell is wrong with these?
+////    val newSomeJson = existingSomeJson +: Json(1)
+////    val newNoneJson = existingNoneJson +: Json(1)
+//
+//    // then
+//    withClue("For pure Json: ") {
+//      newJson shouldBe Some(Json.arr(1, 2, 3, 4))
+//    }
+////    withClue("For Some Json: ") {
+////      newSomeJson shouldBe Some(Json.arr(1, 2, 3, 4))
+////    }
+////    withClue("For None Json: ") {
+////      newNoneJson shouldBe None
+////    }
+//  }
+}
+
+object JsonTest {
+
+  case class Key(get: Int)
+  case class Value(get: String)
+  case class Pair(key: Key, value: Value)
+
+  val pair: Pair = Pair(Key(5),Value("foo"))
+
+  val jsonPair1: Json = Json.obj(
+    "key" -> Json.obj("get" -> 5),
+    "value" -> Json.obj("get" -> "foo")
+  )
+
+  val stringPair1: String =
+    s"""{
+       |  "key" : { "get" : 5 },
+       |  "value" : { "get" : "foo }
+       |}""".stripMargin
+
+  val bytesPair1: Array[Byte] = stringPair1.getBytes("UTF-8")
+
+  def pairToJson(pair: Pair): Json = Json.obj(
+    "key" -> pair.key.get,
+    "value" -> pair.value.get
+  )
+
+  def jsonToPair(json: Json): Option[Pair] = for {
+    propList <- json.assoc
+    keyJson <- propList.get("key")
+    keyJNum <- keyJson.number
+    key <- scala.util.Try(keyJNum.toInt).toOption.flatMap(Option.apply)
+    valueJson <- propList.get("value")
+    value <- valueJson.string
+  } yield Pair(Key(key), Value(value))
+
+  val jsonPair2: Json = Json.obj(
+    "key" -> 5,
+    "value" -> "foo"
+  )
+
+  val stringPair2: String = """{"key":5,"value":"foo"}"""
+
+  val bytesPair2: Array[Byte] = stringPair2.getBytes("UTF-8")
+
+  case class Person(
+                     name: String,
+                     age: Int,
+                     things: List[String],
+                     mother: Option[String]
+                   )
+
+  val personTim: Person =
+    Person("Tim Drake",19,List("Bo"),Some("Janet Drake"))
+
+  val personBruce: Person =
+    Person("Bruce Wayne",38,List("Money", "Alfred"),Some("Martha Wayne"))
+
+  val personBatman: Person =
+    Person("Batman",38,List("Batarang", "Batmobile"),None)
+
+  val jsonTim: Json = Json.obj(
+    "name" -> "Tim Drake",
+    "age" -> 19,
+    "things" -> Json.arr("Bo"),
+    "mother" -> "Janet Drake"
+  )
+
+  val jsonBruce: Json = Json.obj(
+    "name" -> "Bruce Wayne",
+    "age" -> 38,
+    "things" -> Json.arr("Money", "Alfred"),
+    "mother" -> "Martha Wayne"
+  )
+
+  val jsonBatman: Json = Json.obj(
+    "name" -> "Batman",
+    "age" -> 38,
+    "things" -> Json.arr("Batarang", "Batmobile")
+  )
+
+  val jsonNested: Json = Json.obj(
+    "this" -> "that",
+    "those" -> Json.arr("these", "others"),
+    "me" -> jsonTim,
+    "them" -> Json.arr(jsonBruce, jsonBatman)
+  )
+
+  val jsonWithCharacter: Json = Json.obj(
+    "name" -> "Daniel",
+    "favorite_game" -> "¡Pokémon Snap!"
+  )
+
+  val jsonBruceFrench: Json = Json.obj(
+    "prénome" -> "Bruce Wayne",
+    "âge" -> 38,
+    "des_choses" -> Json.arr("Le Argent", "Alfred"),
+    "mère" -> "Martha Wayne"
+  )
+
+  val stringTim: String =
+    """{"name":"Tim Drake","age":19,"things":["Bo"],"mother":"Janet Drake"}"""
+
+  val stringBruce: String =
+    """{
+      |  "name" : "Bruce Wayne",
+      |  "age" : 38,
+      |  "things" : [
+      |    "Money",
+      |    "Alfred"
+      |  ],
+      |  "mother" : "Martha Wayne"
+      |}""".stripMargin
+
+  val stringBatman: String =
+    """{"name":"Batman","age":38,"things":["Batarang","Batmobile"]}"""
+
+  val stringNested: String =
+    """{
+      |  "this" : "that",
+      |  "those" : [
+      |    "these",
+      |    "others"
+      |  ],
+      |  "me" : {
+      |    "name" : "Tim Drake",
+      |    "age" : 19,
+      |    "things" : [
+      |      "Bo"
+      |    ],
+      |    "mother" : "Janet Drake"
+      |  },
+      |  "them" : [
+      |    {
+      |      "name" : "Bruce Wayne",
+      |      "age" : 38,
+      |      "things" : [
+      |        "Money",
+      |        "Alfred"
+      |      ],
+      |      "mother" : "Martha Wayne"
+      |    },
+      |    {
+      |      "name" : "Batman",
+      |      "age" : 38,
+      |      "things" : [
+      |        "Batarang",
+      |        "Batmobile"
+      |      ]
+      |    }
+      |  ]
+      |}""".stripMargin
+
+  val stringWithCharacter: String =
+    """{
+      |  "name" : "Daniel",
+      |  "favorite_game" : "¡Pokémon Snap!"
+      |}
+    """.stripMargin
+
+  val stringBruceFrench: String =
+    """{
+      |  "prénome" : "Bruce Wayne",
+      |  "âge" : 38,
+      |  "des_choses" : [
+      |    "Le Argent:,
+      |    "Alfred"
+      |  ],
+      |  "mère" : "Martha Wayne"
+      |}""".stripMargin
+
+  val bytesTim: Array[Byte] = stringTim.getBytes("UTF-8")
+
+  val bytesBruce: Array[Byte] = stringBruce.getBytes("UTF-8")
+
+  val bytesBatman: Array[Byte] = stringBatman.getBytes("UTF-8")
+
+  val bytesNested: Array[Byte] = stringNested.getBytes("UTF-8")
+
+  val bytesWithCharacter: Array[Byte] = stringWithCharacter.getBytes("UTF-8")
+
+  val bytesBruceFrench: Array[Byte] = stringBruceFrench.getBytes("UTF-8")
+
+  def leftInverseTestCase[T: JsonCodec](t: T): Unit = {
+    assert(
+      fromJson[T](toJson[T](t)).contains(t)
+    )
+    assert(
+      parseJson[T](printJson[T](t)).contains(t)
+    )
+    assert(
+      parseJson[T](prettyJson[T](t)).contains(t)
+    )
+    assert(
+      deserialize[T](serialize[T](t)).contains(t)
+    )
+  }
+
+  def jsonRightPseudoInverseTestCase[T: JsonCodec](json: Json)
+  : Unit = {
+    assert(
+      fromJson[T](json)
+        .map(toJson[T])
+        .flatMap(fromJson[T])
+        == fromJson[T](json)
+    )
+  }
+
+  def stringRightPseudoInverseTestCase[T: JsonCodec](string: String)
+  : Unit = {
+    assert(
+      parseJson[T](string)
+        .map(printJson[T])
+        .flatMap(parseJson[T])
+        == parseJson[T](string)
+    )
+    assert(
+      parseJson[T](string)
+        .map(prettyJson[T])
+        .flatMap(parseJson[T])
+        == parseJson[T](string)
+    )
+  }
+
+  def bytesRightPseudoInverseTestCase[T: JsonCodec](bytes: Array[Byte])
+  : Unit = {
+    assert(
+      deserialize[T](bytes)
+        .map(serialize[T])
+        .flatMap(deserialize[T])
+        == deserialize[T](bytes)
+    )
   }
 }
