@@ -5,14 +5,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.cj</groupId>
-    <artifactId>serialization_2.11</artifactId>
+    <artifactId>serialization_2.12</artifactId>
     <version>1.4.0</version>
 
     <properties>
         <java-source_version>1.8</java-source_version>
         <java-target_version>1.8</java-target_version>
-        <scala-major_version>2.11</scala-major_version>
-        <scala-major-minor_version>2.11.11</scala-major-minor_version>
+        <scala-major_version>2.12</scala-major_version>
+        <scala-major-minor_version>2.12.4</scala-major-minor_version>
         <scalatest_version>3.0.4</scalatest_version>
         <scalacheck_version>1.13.5</scalacheck_version>
         <avro_version>1.8.2</avro_version>
@@ -86,6 +86,12 @@
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
+                <version>${scala-major-minor_version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-reflect</artifactId>
                 <version>${scala-major-minor_version}</version>
             </dependency>
 
