@@ -2,7 +2,7 @@
   reportDir target/detangled
   searchPaths
   [
-    target/serialization_2.12-1.4.1.jar
+    target/serialization_2.12-1.4.2.jar
   ]
   level 1
   startsWith
