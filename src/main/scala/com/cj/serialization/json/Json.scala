@@ -1,10 +1,10 @@
 package com.cj.serialization
 package json
 
+import argonaut.{Json => AJson, JsonObject}
 import traversals._
-import JsonS._
 
-sealed abstract class Json extends Product with Serializable {
+case class Json private[json] (private[json] val aJson: AJson) {
 
   def fold[X](
                withNull: => X,
@@ -15,98 +15,68 @@ sealed abstract class Json extends Product with Serializable {
                withAssoc: Map[String, X] => X
              ): X = {
 
-    val recurse: Json => X =
-      _.fold(withNull,withBoolean,withNumber,withString,withArray,withAssoc)
+    def recurse(json: Json) =
+      json.fold(withNull, withBoolean, withNumber, withString, withArray, withAssoc)
 
-    this match {
-      case JNull => withNull
-      case JBool(p) => withBoolean(p)
-      case JNumber(x) => withNumber(x)
-      case JString(x) => withString(x)
-      case JArray(x) => withArray(x.map(recurse))
-      case JAssoc(x) => withAssoc(x.mapValues(recurse))
-    }
+    aJson.fold(
+      withNull, withBoolean, j => withNumber(j.toBigDecimal), withString,
+      argArr => withArray(argArr.map(aj => recurse(Json(aj)))),
+      argObj => withAssoc(argObj.toMap.map{ case (k, v) => (k, recurse(Json(v))) })
+    )
   }
 
-  def nul: Option[Unit] = this match {
-    case JNull => Some(())
-    case _ => None
-  }
+  def nul: Option[Unit] = if (aJson.isNull) Some(()) else None
 
-  def bool: Option[Boolean] = this match {
-    case JBool(p) => Some(p)
-    case _ => None
-  }
+  def bool: Option[Boolean] = aJson.bool
 
-  def number: Option[BigDecimal] = this match {
-    case JNumber(x) => Some(x)
-    case _ => None
-  }
+  def number: Option[BigDecimal] = aJson.number.map(_.toBigDecimal)
 
-  def long: Option[Long] = this match {
-    case JNumber(x) => x.toLong match {
-      case y if BigDecimal(y) == x => Some(y)
-      case _ => None
-    }
-    case _ => None
-  }
+  def long: Option[Long] = aJson.number.flatMap(_.toLong)
 
-  def double: Option[Double] = this match {
-    case JNumber(x) => x.toDouble match {
-      case y if BigDecimal(y) == x => Some(y)
-      case _ => None
-    }
-    case _ => None
-  }
+  def double: Option[Double] = aJson.number.flatMap(_.toDouble)
 
-  def string: Option[String] = this match {
-    case JString(x) => Some(x)
-    case _ => None
-  }
+  def string: Option[String] = aJson.string
 
-  def array: Option[List[Json]] = this match {
-    case JArray(x) => Some(x)
-    case _ => None
-  }
+  def array: Option[List[Json]] = aJson.array.map(_.map(Json(_)))
 
-  def assoc: Option[Map[String, Json]] = this match {
-    case JAssoc(x) => Some(x)
-    case _ => None
-  }
+  def assoc: Option[Map[String, Json]] =
+    aJson.obj.map(_.toMap.map { case (k, v) => (k, Json(v)) })
 
-  def ~>(key: String): Option[Json] = this match {
-    case JAssoc(x) => x.get(key)
-    case _ => None
-  }
+  def ~>(key: String): Option[Json] =
+    assoc.flatMap(_.get(key))
 
-  def ~>(key: Int): Option[Json] = this match {
-    case JAssoc(x) => x.get(key.toString)
-    case JArray(x) => x.lift(key)
-    case _ => None
-  }
+  def ~>(key: Int): Option[Json] =
+    ~>(key.toString) orElse array.flatMap(_.lift(key))
 
   def ><[A](f: Json => Option[A]): Option[List[A]] =
-    this.array.flatMap(_.traverse(f))
+    array.flatMap(_.traverse(f))
 
-  def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] = this.array.flatMap {
+  def <>[A](z: A)(f: (A, Json) => Option[A]): Option[A] = array.flatMap {
     _.foldLeft(Option(z)) { (aOp, j) => aOp.flatMap(a => f(a, j)) }
   }
 
-  def print: String = JsonS.print(this)
+  def :+(kv: (String, ToJson)): Option[Json] =
+    aJson.obj.map(o => Json(AJson.jObject(o :+ (kv._1, kv._2.toJson.aJson))))
 
-  def pretty: String = JsonS.pretty(this)
+  def :+(v: ToJson): Option[Json] =
+    aJson.array.map(a => Json(AJson.jArray(a :+ v.toJson.aJson)))
+
+  def print: String = aJson.nospaces
+
+  def pretty: String = aJson.spaces2
 }
 
 object Json {
 
-  def nul: Json = JNull
-  def bool(p: Boolean): Json = JBool(p)
-  def number(n: BigDecimal): Json = JNumber(n)
-  def long(n: Long): Json = JNumber(BigDecimal(n))
-  def double(x: Double): Json = JNumber(BigDecimal(x))
-  def string(s: String): Json = JString(s)
-  def array(arr: List[Json]): Json = JArray(arr)
-  def assoc(obj: Map[String, Json]): Json = JAssoc(obj)
+  def nul: Json = Json(AJson.jNull)
+  def bool(p: Boolean): Json = Json(AJson.jBool(p))
+  def number(n: BigDecimal): Json = Json(AJson.jNumber(n))
+  def long(n: Long): Json = Json(AJson.jNumber(n))
+  def double(x: Double): Option[Json] = AJson.jNumber(x).map(Json(_))
+  def string(s: String): Json = Json(AJson.jString(s))
+  def array(arr: List[Json]): Json = Json(AJson.jArray(arr.map(_.aJson)))
+  def assoc(obj: Map[String, Json]): Json =
+    Json(AJson.jObject(JsonObject.fromTraversableOnce(obj.mapValues(_.aJson))))
 
   def apply(x: ToJson): Json = x.toJson
 
@@ -120,7 +90,8 @@ object Json {
 
   def emptyArr: Json = array(List())
 
-  def parse(raw: String): Either[String, Json] = JsonS.parse(raw)
+  def parse(raw: String): Either[String, Json] =
+    argonaut.Parse.parse(raw).right.map(Json(_))
 }
 
 sealed trait ToJson {
@@ -225,53 +196,9 @@ object JsonImplicits {
 
   implicit class JsonPair(val self: (String, Json)) extends AnyVal {
 
-    def ~>(other: Json): Option[Json] = other match {
-      case JAssoc(obj) => Some(JAssoc(obj + self))
-      case _ => None
-    }
+    def ~>(other: Json): Option[Json] =
+      other.aJson.obj.map(a => Json(AJson.jObject(a + (self._1, self._2.aJson))))
 
     def ~>(other: Option[Json]): Option[Json] = other flatMap ~>
   }
-}
-
-private[json] object JsonS {
-
-  case object JNull extends Json
-  case class JBool(get: Boolean) extends Json
-  case class JNumber(get: BigDecimal) extends Json
-  case class JString(get: String) extends Json
-  case class JArray(get: List[Json]) extends Json
-  case class JAssoc(get: Map[String, Json]) extends Json
-
-  import argonaut.{Json => AJson, JsonObject}
-
-  def fromArgonaut(ajson: AJson): Json = ajson.fold[Json](
-    jsonNull = Json.nul,
-    jsonBool = p => Json.bool(p),
-    jsonNumber = n => Json.number(n.toBigDecimal),
-    jsonString = s => Json.string(s),
-    jsonArray = array => Json.array(array.map(fromArgonaut)),
-    jsonObject = assoc => Json.assoc(
-      assoc.toMap.map({case (k, v) => (k, fromArgonaut(v))}))
-  )
-
-  def toArgonaut(json: Json): AJson = json.fold[AJson](
-    withNull = AJson.jNull,
-    withBoolean = p => AJson.jBool(p),
-    withNumber = n => AJson.jNumber(n),
-    withString = s => AJson.jString(s),
-    withArray = array => AJson.jArray(array),
-    withAssoc = assoc =>
-      AJson.jObject(JsonObject.fromTraversableOnce(assoc))
-  )
-
-  def print(json: Json): String = toArgonaut(json).nospaces
-
-  def pretty(json: Json): String = toArgonaut(json).spaces2
-
-  def parse(raw: String): Either[String, Json] =
-    argonaut.Parse.parse(raw).fold(
-      msg => Left(msg),
-      ajson => Right(fromArgonaut(ajson))
-    )
 }

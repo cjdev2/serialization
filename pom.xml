@@ -6,27 +6,28 @@
 
     <groupId>com.cj</groupId>
     <artifactId>serialization_2.11</artifactId>
-    <version>1.4.2</version>
+    <version>2.0.0</version>
 
     <properties>
         <java-source_version>1.8</java-source_version>
         <java-target_version>1.8</java-target_version>
         <scala-major_version>2.11</scala-major_version>
-        <scala-major-minor_version>2.11.11</scala-major-minor_version>
-        <scalatest_version>3.0.4</scalatest_version>
+        <scala-major-minor_version>2.11.12</scala-major-minor_version>
+        <scalatest_version>3.0.5</scalatest_version>
         <scalacheck_version>1.13.5</scalacheck_version>
         <avro_version>1.8.2</avro_version>
-        <libthrift_version>0.10.0</libthrift_version>
+        <libthrift_version>0.11.0</libthrift_version>
         <maven-thrift-plugin_version>0.1.11</maven-thrift-plugin_version>
         <scrooge_version>4.20.0</scrooge_version>
-        <argonaut_version>6.2</argonaut_version>
+        <argonaut_version>6.2.1</argonaut_version>
         <snakeyaml_version>1.18</snakeyaml_version>
         <slf4j-api_version>1.7.25</slf4j-api_version>
-        <detangler-maven-plugin_version>0.9.1</detangler-maven-plugin_version>
-        <maven-compiler-plugin_version>3.6.1</maven-compiler-plugin_version>
-        <scala-maven-plugin_version>3.2.2</scala-maven-plugin_version>
-        <scalatest-maven-plugin_version>1.0</scalatest-maven-plugin_version>
+        <detangler-maven-plugin_version>0.9.2</detangler-maven-plugin_version>
+        <maven-compiler-plugin_version>3.7.0</maven-compiler-plugin_version>
+        <scala-maven-plugin_version>3.3.2</scala-maven-plugin_version>
+        <scalatest-maven-plugin_version>2.0.0</scalatest-maven-plugin_version>
         <maven-enforcer-plugin_version>1.4.1</maven-enforcer-plugin_version>
+        <maven-source-plugin_version>3.0.1</maven-source-plugin_version>
     </properties>
 
     <dependencies>
@@ -86,6 +87,12 @@
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
+                <version>${scala-major-minor_version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-reflect</artifactId>
                 <version>${scala-major-minor_version}</version>
             </dependency>
 
@@ -234,18 +241,21 @@
                     </execution>
                 </executions>
             </plugin>
-			<plugin>
-			  <groupId>org.apache.maven.plugins</groupId>
-			  <artifactId>maven-source-plugin</artifactId>
-			  <executions>
-			    <execution>
-			      <id>attach-sources</id>
-			      <goals>
-			        <goal>jar</goal>
-			      </goals>
-			    </execution>
-			  </executions>
-			</plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin_version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 
