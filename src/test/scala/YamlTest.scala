@@ -161,10 +161,10 @@ class YamlTest extends FlatSpec with Matchers with PropertyChecks {
       lazy val genValue = {
 
         lazy val genNum =
-          Gen.oneOf(
-            Arbitrary.arbitrary[Long].map(Json.long),
+          Gen.oneOf[Option[Json]](
+            Arbitrary.arbitrary[Long].map(Json.long).map(Option(_)),
             Arbitrary.arbitrary[Double].map(Json.double)
-          )
+          ).map(_.getOrElse(Json.number(0l)))
 
         lazy val genString =
           Arbitrary.arbitrary[String].map(Json.string)

@@ -151,10 +151,10 @@ package object json {
       new JsonCodec[T] {
 
         def toJson(t: T): Json =
-          JsonS.fromArgonaut(argonaut.Argonaut.ToJsonIdentity(t).asJson(argoCodec))
+          Json(argonaut.Argonaut.ToJsonIdentity(t).asJson(argoCodec))
 
         def fromJson(json: Json): Option[T] =
-          JsonS.toArgonaut(json).as[T](argoCodec).fold(
+          json.aJson.as[T](argoCodec).fold(
             failure = (_, _) => None,
             value = t => safely(t)
           )
@@ -365,7 +365,7 @@ package object json {
     */
   implicit def encodeJson[T](implicit codec: JsonCodec[T]): EncodeJson[T] =
     new EncodeJson[T] {
-      def encode(a: T): AJson = JsonS.toArgonaut(codec.toJson(a))
+      def encode(a: T): AJson = codec.toJson(a).aJson
     }
 
   /**
@@ -374,7 +374,7 @@ package object json {
   implicit def decodeJson[T](implicit codec: JsonCodec[T]): DecodeJson[T] =
     new DecodeJson[T] {
       def decode(hcursor: HCursor): DecodeResult[T] =
-        codec.fromJson(JsonS.fromArgonaut(hcursor.cursor.focus)) match {
+        codec.fromJson(Json(hcursor.cursor.focus)) match {
           case None => DecodeResult.fail("Decode failure!", hcursor.history)
           case Some(a) => DecodeResult.ok(a)
         }
