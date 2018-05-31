@@ -4,7 +4,7 @@ package json
 import argonaut.{Json => AJson, JsonObject}
 import traversals._
 
-case class Json private[json] (private[json] val aJson: AJson) {
+case class Json(aJson: AJson) extends AnyVal {
 
   def fold[X](
                withNull: => X,
